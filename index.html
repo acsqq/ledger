@@ -1142,7 +1142,8 @@
     state.recurring.push({ id: Date.now(), name: name, type: currentRecurType, amount: amount, category: category, frequency: frequency, nextDate: start, anchorDay: dateStrToDate(start).getDate(), active: true });
     await saveRecurring();
     nameEl.value = ''; document.getElementById('recur-amount').value = '';
-    renderRecurring();
+    await processRecurring();
+    renderAll();
   }
 
   async function toggleRecurring(id) {
@@ -1150,7 +1151,8 @@
     if (!r) return;
     r.active = !r.active;
     await saveRecurring();
-    renderRecurring();
+    if (r.active) await processRecurring();
+    renderAll();
   }
 
   async function removeRecurring(id) {
