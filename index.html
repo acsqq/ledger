@@ -30,7 +30,7 @@
     margin: 0; padding: 0; background: var(--paper); color: var(--ink);
     font-family: var(--font-body); -webkit-font-smoothing: antialiased;
   }
-  body { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 84px; }
+  body { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   @media (min-width: 700px) {
     body { max-width: 640px; }
     nav.tabs { max-width: 640px; }
@@ -42,6 +42,12 @@
     font-size: 13px; color: var(--ink-soft); background: none; border: none;
     border-bottom: 1px solid var(--line); padding-bottom: 1px; cursor: pointer; font-family: var(--font-body);
   }
+  header .header-actions { display: flex; align-items: center; gap: 14px; }
+  header .icon-btn {
+    background: none; border: none; padding: 0; cursor: pointer; color: var(--ink-soft);
+    display: flex; align-items: center; justify-content: center;
+  }
+  header .icon-btn svg { width: 20px; height: 20px; display: block; }
   main { padding: 0 20px; }
   .panel { display: none; }
   .panel.active { display: block; animation: fade 0.2s ease; }
@@ -87,7 +93,13 @@
   .field input, .field select {
     width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 0;
     font-size: 15px; background: var(--field-bg); color: var(--ink); font-family: var(--font-body);
+    min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none;
   }
+  .field input[type="date"] {
+    -webkit-appearance: none; appearance: none; display: block;
+    min-width: 0; max-width: 100%; text-align: left;
+  }
+  .field input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
   .field input:focus, .field select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
   .type-toggle { display: flex; border: 1px solid var(--line); border-radius: 0; overflow: hidden; }
   .type-toggle button {
@@ -172,6 +184,12 @@
   .modal-close button { background: none; border: none; color: var(--ink-soft); font-size: 14px; padding: 10px; cursor: pointer; font-family: var(--font-body); }
 
   .loading { text-align: center; padding: 60px 20px; color: var(--ink-soft); font-size: 14px; }
+  #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 20px; }
+  .login-box { width: 100%; max-width: 340px; }
+  .login-title { font-family: var(--font-display); font-size: 30px; font-weight: 700; margin: 0 0 4px; }
+  .login-sub { font-size: 14px; color: var(--ink-soft); margin: 0 0 24px; }
+  .login-error { color: var(--brick); font-size: 13px; margin: 0 0 12px; min-height: 16px; }
+  .login-reset { width: 100%; background: none; border: none; color: var(--ink-soft); font-size: 13px; padding: 14px 0 0; cursor: pointer; font-family: var(--font-body); }
 
   .donut-wrap { display: flex; gap: 18px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
   .donut-svg { flex-shrink: 0; }
@@ -228,12 +246,27 @@
 </head>
 <body>
 
+<div id="login-screen" style="display:none;">
+  <div class="login-box">
+    <h1 class="login-title">Ledger</h1>
+    <p class="login-sub">Sign in to continue</p>
+    <div class="field"><label>Email</label><input type="email" id="login-email" autocomplete="username" placeholder="you@example.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••"></div>
+    <p id="login-error" class="login-error"></p>
+    <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Sign in</button>
+    <button class="login-reset" onclick="doResetPassword()">Forgot password?</button>
+  </div>
+</div>
+
 <div id="loading" class="loading">Loading your ledger…</div>
 
 <div id="app" style="display:none;">
   <header>
     <h1>Ledger</h1>
-    <button class="settings-link" onclick="openSettingsModal()">Settings</button>
+    <div class="header-actions">
+      <button class="icon-btn" id="eye-btn" onclick="toggleAmountVisibility()" aria-label="Show or hide amounts"></button>
+      <button class="settings-link" onclick="openSettingsModal()">Settings</button>
+    </div>
   </header>
 
   <main>
@@ -251,7 +284,7 @@
         <div class="stat-card in"><p class="label">In</p><p class="amt" id="month-in">—</p></div>
         <div class="stat-card out"><p class="label">Out</p><p class="amt" id="month-out">—</p></div>
       </div>
-      <h2 class="section-title">In vs. out</h2>
+      <h2 class="section-title">Spending by category</h2>
       <div id="inout-donut"></div>
       <h2 class="section-title">Activity</h2>
       <div id="recent-list"></div>
@@ -398,6 +431,7 @@
       <p style="font-size:11px; color:var(--ink-soft); margin: 6px 2px 0;">Use this if your budgeting month doesn't start on the 1st — e.g. set it to the day you get paid. Capped at 28 so it works the same every month.</p>
     </div>
     <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+    <button class="btn btn-ghost" style="margin-top:10px;" onclick="doLogout()">Sign out</button>
     <button class="btn btn-ghost" style="margin-top:10px;" onclick="resetAllData()">Reset all data</button>
     <div class="modal-close"><button onclick="closeModal('settings')">Close</button></div>
   </div>
@@ -405,6 +439,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script>
   var firebaseConfig = {
     apiKey: "AIzaSyBsr8Fyn2pBwSI5NAjp-7RkSTaE60F5R7M",
@@ -416,20 +451,49 @@
   };
   firebase.initializeApp(firebaseConfig);
   var db = firebase.firestore();
+  var auth = firebase.auth();
   try { db.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
+  try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (e) {}
+
+  var MIGRATE_EMAIL = 'irvingadrielng@yahoo.com.sg';
+  var DATA_KEYS = ['txns', 'budgets', 'goals', 'settings', 'portfolios', 'recurring'];
+  var currentUid = null;
+
+  function userDoc(key) {
+    return db.collection('users').doc(currentUid).collection('ledger').doc(key);
+  }
 
   window.storage = {
     get: async function(key) {
-      var doc = await db.collection('ledger').doc(key).get();
+      var doc = await userDoc(key).get();
       if (!doc.exists) return null;
-      var data = doc.data();
-      return { key: key, value: data.value };
+      return { key: key, value: doc.data().value };
     },
     set: async function(key, value) {
-      await db.collection('ledger').doc(key).set({ value: value });
+      await userDoc(key).set({ value: value });
       return { key: key, value: value };
     }
   };
+
+  async function migrateLegacyData(user) {
+    if (!user.email || user.email.toLowerCase() !== MIGRATE_EMAIL) return;
+    var flag = await db.collection('users').doc(user.uid).get();
+    if (flag.exists && flag.data().migrated) return;
+    var moved = 0;
+    for (var i = 0; i < DATA_KEYS.length; i++) {
+      var key = DATA_KEYS[i];
+      try {
+        var oldDoc = await db.collection('ledger').doc(key).get();
+        if (!oldDoc.exists) continue;
+        var mineDoc = await db.collection('users').doc(user.uid).collection('ledger').doc(key).get();
+        if (mineDoc.exists) continue;
+        await db.collection('users').doc(user.uid).collection('ledger').doc(key).set({ value: oldDoc.data().value });
+        moved++;
+      } catch (e) {}
+    }
+    try { await db.collection('users').doc(user.uid).set({ migrated: true }, { merge: true }); } catch (e) {}
+    return moved;
+  }
 
   var PALETTE = ['#34D399', '#F87171', '#FBBF24', '#60A5FA', '#A78BFA', '#F472B6', '#2DD4BF', '#FB923C', '#A3E635', '#818CF8'];
   var EXPENSE_CATS = ['Food', 'Groceries', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Health', 'Savings', 'Other'];
@@ -494,6 +558,27 @@
     return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
   }
 
+  var amountsHidden = true;
+  var MASK = '••••••';
+
+  var EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7c2 0 3.7.7 5.1 1.6"/><path d="M22 12s-3.5 7-10 7c-2 0-3.7-.7-5.1-1.6"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
+
+  function maskIfHidden(text) {
+    return amountsHidden ? MASK : text;
+  }
+
+  function updateEyeIcon() {
+    var btn = document.getElementById('eye-btn');
+    if (btn) btn.innerHTML = amountsHidden ? EYE_OFF_SVG : EYE_OPEN_SVG;
+  }
+
+  function toggleAmountVisibility() {
+    amountsHidden = !amountsHidden;
+    updateEyeIcon();
+    renderAll();
+  }
+
   var SHRINK_SELECTORS = ['.metric-card .value', '.total-value-card .value', '.stat-card .amt', '.ledger-row .amt', '.budget-item .figures', '.goal-card .figures', '.p-value .amt', '.recur-row .ramt', '.legend-row .val'];
 
   function autoShrinkElement(el) {
@@ -519,6 +604,12 @@
   function animateValue(elId, newValue) {
     var el = document.getElementById(elId);
     if (!el) return;
+    if (amountsHidden) {
+      el.style.fontSize = '';
+      el.textContent = MASK;
+      el.dataset.rawValue = String(newValue);
+      return;
+    }
     var prev = parseFloat(el.dataset.rawValue || '0');
     if (prev === newValue) { el.textContent = fmt(newValue); autoShrinkElement(el); return; }
     var start = null, duration = 500;
@@ -563,8 +654,13 @@
 
   function addMonthsToDateStr(dateStr, n) {
     var d = dateStrToDate(dateStr);
-    d.setMonth(d.getMonth() + n);
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    var targetDay = d.getDate();
+    var y = d.getFullYear(), m = d.getMonth() + n;
+    y += Math.floor(m / 12);
+    m = ((m % 12) + 12) % 12;
+    var daysInTarget = new Date(y, m + 1, 0).getDate();
+    var day = Math.min(targetDay, daysInTarget);
+    return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
   }
 
   function addDaysToDateStr(dateStr, n) {
@@ -595,6 +691,9 @@
     try { state.settings = s ? JSON.parse(s.value) : { currency: 'SGD', startingNetWorth: 0 }; } catch (e) { state.settings = { currency: 'SGD', startingNetWorth: 0 }; }
     try { state.portfolios = p ? JSON.parse(p.value) : []; } catch (e) { state.portfolios = []; }
     try { state.recurring = r ? JSON.parse(r.value) : []; } catch (e) { state.recurring = []; }
+    state.recurring.forEach(function(rec) {
+      if (!rec.anchorDay && rec.nextDate) rec.anchorDay = dateStrToDate(rec.nextDate).getDate();
+    });
     if (!state.settings.currency || state.settings.currency.length !== 3) state.settings.currency = 'SGD';
     if (!state.settings.cycleStartDay) state.settings.cycleStartDay = 1;
     state.goals.forEach(function(g) { if (typeof g.completed === 'undefined') g.completed = false; });
@@ -668,35 +767,6 @@
     renderOverview();
   }
 
-  function renderInOutDonut(containerId, inAmt, outAmt) {
-    var container = document.getElementById(containerId);
-    var total = inAmt + outAmt;
-    if (total <= 0) { container.innerHTML = '<div class="chart-empty">Nothing to chart yet.</div>'; return; }
-    var entries = [];
-    if (inAmt > 0) entries.push({ label: 'In', value: inAmt, color: getComputedStyle(document.documentElement).getPropertyValue('--sage').trim() || '#34D399' });
-    if (outAmt > 0) entries.push({ label: 'Out', value: outAmt, color: getComputedStyle(document.documentElement).getPropertyValue('--brick').trim() || '#F87171' });
-    var size = 150, stroke = 24, r = (size - stroke) / 2, cx = size / 2, cy = size / 2, circ = 2 * Math.PI * r;
-    var offset = 0;
-    var circles = entries.map(function(e) {
-      var frac = e.value / total, dash = frac * circ;
-      var seg = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + e.color + '" stroke-width="' + stroke + '" ' +
-        'stroke-dasharray="' + dash.toFixed(2) + ' ' + (circ - dash).toFixed(2) + '" stroke-dashoffset="' + (-offset).toFixed(2) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"></circle>';
-      offset += dash;
-      return seg;
-    }).join('');
-    var net = inAmt - outAmt;
-    var svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">' + circles +
-      '<text x="' + cx + '" y="' + (cy - 3) + '" text-anchor="middle" style="fill:var(--ink); font-family:var(--font-mono); font-size:12px; font-weight:700;">' + (net >= 0 ? '+' : '−') + fmt(Math.abs(net)) + '</text>' +
-      '<text x="' + cx + '" y="' + (cy + 13) + '" text-anchor="middle" style="fill:var(--ink-soft); font-family:var(--font-body); font-size:10px;">net</text>' +
-      '</svg>';
-    var legend = '<div class="donut-legend">' + entries.map(function(e) {
-      var pct = Math.round((e.value / total) * 100);
-      return '<div class="legend-row"><span class="dot" style="background:' + e.color + ';"></span>' +
-        '<span class="lbl">' + e.label + '</span><span class="pct">' + pct + '%</span><span class="val">' + fmt(e.value) + '</span></div>';
-    }).join('') + '</div>';
-    container.innerHTML = '<div class="donut-wrap"><div class="donut-svg">' + svg + '</div>' + legend + '</div>';
-  }
-
   function buildActivityFeed(cyc) {
     var items = [];
     state.txns.forEach(function(t) {
@@ -736,7 +806,11 @@
     var mt = monthTotals(cyc);
     document.getElementById('month-in').textContent = fmt(mt.monthIn);
     document.getElementById('month-out').textContent = fmt(mt.monthOut);
-    renderInOutDonut('inout-donut', mt.monthIn, mt.monthOut);
+    var spentByCat = {};
+    state.txns.forEach(function(t) {
+      if (t.type === 'out' && isInCycle(t.date, cyc)) spentByCat[t.category] = (spentByCat[t.category] || 0) + t.amount;
+    });
+    renderDonut('inout-donut', spentByCat);
 
     var feed = buildActivityFeed(cyc);
     var list = document.getElementById('recent-list');
@@ -747,10 +821,11 @@
     var sign = t.type === 'in' ? '+' : '−';
     var goalName = '';
     if (t.goalId) { var g = state.goals.find(function(g) { return g.id === t.goalId; }); if (g) goalName = ' · → ' + escapeHtml(g.name); }
-    var noteDate = t.date + (t.note ? ' · ' + escapeHtml(t.note) : '') + goalName;
+    var title = t.note ? escapeHtml(t.note) : escapeHtml(t.category);
+    var subline = t.date + ' · ' + escapeHtml(t.category) + goalName;
     return '<div class="ledger-row"><div class="row-main">' +
       '<span class="cat-dot" style="background:' + colorForLabel(t.category) + ';"></span>' +
-      '<div class="meta"><p class="cat">' + escapeHtml(t.category) + '</p><p class="note-date">' + noteDate + '</p></div>' +
+      '<div class="meta"><p class="cat">' + title + '</p><p class="note-date">' + subline + '</p></div>' +
       '</div><span class="amt ' + t.type + '">' + sign + fmt(t.amount) + '</span>' +
       '<button class="del" aria-label="Delete transaction" onclick="deleteTransaction(' + t.id + ')">×</button></div>';
   }
@@ -1007,10 +1082,10 @@
         '<div class="p-top">' +
           '<div class="p-avatar" style="background:' + color + '; color:#0A1830;">' + initials + '</div>' +
           '<div class="p-info"><span class="name">' + escapeHtml(p.name) + '</span><span class="updated">Updated ' + p.updated + '</span></div>' +
-          '<div class="p-value"><span class="amt">' + fmt(p.value) + '</span>' + deltaHtml + '</div>' +
+          '<div class="p-value"><span class="amt">' + maskIfHidden(fmt(p.value)) + '</span>' + deltaHtml + '</div>' +
         '</div>' +
         '<span class="alloc-pill" style="background:' + color + '; color:#0A1830;">' + pct + '% of portfolio</span>' +
-        '<div class="edit-row"><label>Update value</label><input type="number" inputmode="decimal" step="0.01" value="' + p.value + '" onchange="updatePortfolioValue(' + p.id + ', this.value)"></div>' +
+        (amountsHidden ? '' : '<div class="edit-row"><label>Update value</label><input type="number" inputmode="decimal" step="0.01" value="' + p.value + '" onchange="updatePortfolioValue(' + p.id + ', this.value)"></div>') +
         '<button class="rm" onclick="removePortfolio(' + p.id + ')">Remove</button></div>';
     }).join('');
   }
@@ -1064,7 +1139,7 @@
     var category = document.getElementById('recur-category').value;
     var frequency = document.getElementById('recur-frequency').value;
     var start = document.getElementById('recur-start').value || todayStr();
-    state.recurring.push({ id: Date.now(), name: name, type: currentRecurType, amount: amount, category: category, frequency: frequency, nextDate: start, active: true });
+    state.recurring.push({ id: Date.now(), name: name, type: currentRecurType, amount: amount, category: category, frequency: frequency, nextDate: start, anchorDay: dateStrToDate(start).getDate(), active: true });
     await saveRecurring();
     nameEl.value = ''; document.getElementById('recur-amount').value = '';
     renderRecurring();
@@ -1084,6 +1159,22 @@
     renderRecurring();
   }
 
+  var idCounter = 0;
+  function newId() {
+    idCounter++;
+    return Date.now() * 1000 + (idCounter % 1000);
+  }
+
+  function nextMonthlyDate(dateStr, anchorDay) {
+    var d = dateStrToDate(dateStr);
+    var y = d.getFullYear(), m = d.getMonth() + 1;
+    y += Math.floor(m / 12);
+    m = ((m % 12) + 12) % 12;
+    var daysInTarget = new Date(y, m + 1, 0).getDate();
+    var day = Math.min(anchorDay || d.getDate(), daysInTarget);
+    return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  }
+
   async function processRecurring() {
     var today = todayStr();
     var changed = false;
@@ -1091,8 +1182,8 @@
       if (!r.active) return;
       var guard = 0;
       while (r.nextDate <= today && guard < 36) {
-        state.txns.push({ id: Date.now() + Math.floor(Math.random() * 1000), type: r.type, amount: r.amount, category: r.category, note: 'Recurring: ' + r.name, date: r.nextDate, goalId: null });
-        r.nextDate = r.frequency === 'monthly' ? addMonthsToDateStr(r.nextDate, 1) : addDaysToDateStr(r.nextDate, 7);
+        state.txns.push({ id: newId(), type: r.type, amount: r.amount, category: r.category, note: 'Recurring: ' + r.name, date: r.nextDate, goalId: null });
+        r.nextDate = r.frequency === 'monthly' ? nextMonthlyDate(r.nextDate, r.anchorDay) : addDaysToDateStr(r.nextDate, 7);
         changed = true;
         guard++;
       }
@@ -1142,7 +1233,7 @@
     autoShrinkAll();
   }
 
-  (async function init() {
+  async function startApp() {
     await loadData();
     await processRecurring();
     var snap = dateStrToDate(cycleContaining(todayStr()).start);
@@ -1152,10 +1243,66 @@
     document.getElementById('recur-start').value = todayStr();
     populateCategorySelect('txn-category', 'out');
     populateCategorySelect('recur-category', 'out');
+    updateEyeIcon();
     renderAll();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-  })();
+  }
+
+  function showLogin(msg) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-error').textContent = msg || '';
+  }
+
+  async function doLogin() {
+    var email = document.getElementById('login-email').value.trim();
+    var pw = document.getElementById('login-password').value;
+    var errEl = document.getElementById('login-error');
+    var btn = document.getElementById('login-btn');
+    if (!email || !pw) { errEl.textContent = 'Enter your email and password.'; return; }
+    btn.disabled = true; btn.textContent = 'Signing in…'; errEl.textContent = '';
+    try {
+      await auth.signInWithEmailAndPassword(email, pw);
+    } catch (e) {
+      var m = 'Could not sign in. Check your email and password.';
+      if (e && e.code === 'auth/too-many-requests') m = 'Too many attempts. Try again in a few minutes.';
+      errEl.textContent = m;
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  }
+
+  async function doResetPassword() {
+    var email = document.getElementById('login-email').value.trim();
+    var errEl = document.getElementById('login-error');
+    if (!email) { errEl.textContent = 'Enter your email first, then tap this again.'; return; }
+    try {
+      await auth.sendPasswordResetEmail(email);
+      errEl.textContent = 'Reset link sent. Check your email.';
+    } catch (e) {
+      errEl.textContent = 'Could not send reset email.';
+    }
+  }
+
+  async function doLogout() {
+    if (!confirm('Sign out of Ledger?')) return;
+    await auth.signOut();
+    location.reload();
+  }
+
+  document.getElementById('login-password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  auth.onAuthStateChanged(async function(user) {
+    if (!user) { showLogin(''); return; }
+    currentUid = user.uid;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    try { await migrateLegacyData(user); } catch (e) {}
+    await startApp();
+  });
 </script>
 
 </body>
