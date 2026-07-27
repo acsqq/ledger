@@ -416,6 +416,7 @@
   };
   firebase.initializeApp(firebaseConfig);
   var db = firebase.firestore();
+  try { db.enablePersistence({ synchronizeTabs: true }); } catch (e) {}
 
   window.storage = {
     get: async function(key) {
@@ -579,12 +580,21 @@
   }
 
   async function loadData() {
-    try { var t = await window.storage.get('txns'); state.txns = t ? JSON.parse(t.value) : []; } catch (e) { state.txns = []; }
-    try { var b = await window.storage.get('budgets'); state.budgets = b ? JSON.parse(b.value) : {}; } catch (e) { state.budgets = {}; }
-    try { var g = await window.storage.get('goals'); state.goals = g ? JSON.parse(g.value) : []; } catch (e) { state.goals = []; }
-    try { var s = await window.storage.get('settings'); state.settings = s ? JSON.parse(s.value) : { currency: 'SGD', startingNetWorth: 0 }; } catch (e) { state.settings = { currency: 'SGD', startingNetWorth: 0 }; }
-    try { var p = await window.storage.get('portfolios'); state.portfolios = p ? JSON.parse(p.value) : []; } catch (e) { state.portfolios = []; }
-    try { var r = await window.storage.get('recurring'); state.recurring = r ? JSON.parse(r.value) : []; } catch (e) { state.recurring = []; }
+    var results = await Promise.all([
+      window.storage.get('txns').catch(function() { return null; }),
+      window.storage.get('budgets').catch(function() { return null; }),
+      window.storage.get('goals').catch(function() { return null; }),
+      window.storage.get('settings').catch(function() { return null; }),
+      window.storage.get('portfolios').catch(function() { return null; }),
+      window.storage.get('recurring').catch(function() { return null; })
+    ]);
+    var t = results[0], b = results[1], g = results[2], s = results[3], p = results[4], r = results[5];
+    try { state.txns = t ? JSON.parse(t.value) : []; } catch (e) { state.txns = []; }
+    try { state.budgets = b ? JSON.parse(b.value) : {}; } catch (e) { state.budgets = {}; }
+    try { state.goals = g ? JSON.parse(g.value) : []; } catch (e) { state.goals = []; }
+    try { state.settings = s ? JSON.parse(s.value) : { currency: 'SGD', startingNetWorth: 0 }; } catch (e) { state.settings = { currency: 'SGD', startingNetWorth: 0 }; }
+    try { state.portfolios = p ? JSON.parse(p.value) : []; } catch (e) { state.portfolios = []; }
+    try { state.recurring = r ? JSON.parse(r.value) : []; } catch (e) { state.recurring = []; }
     if (!state.settings.currency || state.settings.currency.length !== 3) state.settings.currency = 'SGD';
     if (!state.settings.cycleStartDay) state.settings.cycleStartDay = 1;
     state.goals.forEach(function(g) { if (typeof g.completed === 'undefined') g.completed = false; });
