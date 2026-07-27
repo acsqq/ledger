@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
 <title>Ledger</title>
 <style>
   :root {
@@ -81,6 +84,7 @@
   .ledger-row .amt.out { color: var(--brick); }
   .ledger-row .del { background: none; border: none; color: var(--ink-faint); font-size: 18px; padding: 4px 6px; cursor: pointer; line-height: 1; }
 
+  .ledger-row.scheduled { opacity: 0.5; }
   .empty { text-align: center; padding: 40px 10px; color: var(--ink-soft); font-size: 14px; }
 
   .field { margin-bottom: 12px; }
@@ -777,12 +781,30 @@
         items.push({ date: p.updated, kind: 'invest', data: p });
       }
     });
+    var today = todayStr();
+    state.recurring.forEach(function(r) {
+      if (!r.active) return;
+      var d = r.nextDate, guard = 0;
+      while (d <= cyc.end && guard < 40) {
+        if (d > today && d >= cyc.start) items.push({ date: d, kind: 'scheduled', data: { name: r.name, category: r.category, type: r.type, amount: r.amount, date: d } });
+        d = r.frequency === 'monthly' ? nextMonthlyDate(d, r.anchorDay) : addDaysToDateStr(d, 7);
+        guard++;
+      }
+    });
     items.sort(function(a, b) { return b.date.localeCompare(a.date); });
     return items;
   }
 
   function activityRowHtml(item) {
     if (item.kind === 'txn') return rowHtml(item.data);
+    if (item.kind === 'scheduled') {
+      var s = item.data;
+      var sSign = s.type === 'in' ? '+' : '−';
+      return '<div class="ledger-row scheduled"><div class="row-main">' +
+        '<span class="cat-dot" style="background:' + colorForLabel(s.category) + ';"></span>' +
+        '<div class="meta"><p class="cat">' + escapeHtml(s.name) + '</p><p class="note-date">' + s.date + ' · ' + escapeHtml(s.category) + ' · scheduled</p></div>' +
+        '</div><span class="amt ' + s.type + '">' + sSign + fmt(s.amount) + '</span></div>';
+    }
     var p = item.data;
     var diff = p.value - p.previousValue;
     var color = colorForLabel(p.name);
@@ -1184,13 +1206,17 @@
       if (!r.active) return;
       var guard = 0;
       while (r.nextDate <= today && guard < 36) {
-        state.txns.push({ id: newId(), type: r.type, amount: r.amount, category: r.category, note: 'Recurring: ' + r.name, date: r.nextDate, goalId: null });
+        var exists = state.txns.some(function(t) { return t.recurId === r.id && t.date === r.nextDate; });
+        if (!exists) {
+          state.txns.push({ id: newId(), recurId: r.id, type: r.type, amount: r.amount, category: r.category, note: 'Recurring: ' + r.name, date: r.nextDate, goalId: null });
+          changed = true;
+        }
         r.nextDate = r.frequency === 'monthly' ? nextMonthlyDate(r.nextDate, r.anchorDay) : addDaysToDateStr(r.nextDate, 7);
-        changed = true;
         guard++;
       }
     });
-    if (changed) { await saveTxns(); await saveRecurring(); }
+    if (changed) { await saveTxns(); }
+    await saveRecurring();
   }
 
   function openSettingsModal() {
