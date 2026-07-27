@@ -9,6 +9,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <title>Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --paper: #0A1830;
@@ -27,6 +30,58 @@
     --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
     --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  body.theme-light {
+    --paper: #F4F6FA;
+    --card: #FFFFFF;
+    --field-bg: #EDF0F5;
+    --ink: #1B2733;
+    --ink-soft: #52637A;
+    --ink-faint: #7E8CA0;
+    --line: #D8DEE8;
+    --sage: #0E7A55;
+    --sage-bg: rgba(14,122,85,0.12);
+    --brick: #B3372B;
+    --brick-bg: rgba(179,55,43,0.12);
+    --gold: #8A6414;
+    --gold-bg: rgba(138,100,20,0.14);
+  }
+  body.theme-pastel {
+    --paper: #FDF6F9;
+    --card: #FFFFFF;
+    --field-bg: #F8ECF2;
+    --ink: #45364E;
+    --ink-soft: #7D6B86;
+    --ink-faint: #A794AE;
+    --line: #EBD9E4;
+    --sage: #1F7A5C;
+    --sage-bg: rgba(31,122,92,0.12);
+    --brick: #B4436C;
+    --brick-bg: rgba(180,67,108,0.12);
+    --gold: #8F5FA8;
+    --gold-bg: rgba(143,95,168,0.14);
+    --font-display: 'Quicksand', -apple-system, sans-serif;
+    --font-body: 'Quicksand', -apple-system, sans-serif;
+    --font-mono: 'Quicksand', -apple-system, sans-serif;
+  }
+  body.theme-light {
+    --paper: #F4F6F9; --card: #FFFFFF; --field-bg: #EDF1F6;
+    --ink: #1E293B; --ink-soft: #526073; --ink-faint: #8894A6;
+    --line: #DCE3EC;
+    --sage: #15803D; --sage-bg: rgba(21,128,61,0.10);
+    --brick: #DC2626; --brick-bg: rgba(220,38,38,0.10);
+    --gold: #B45309; --gold-bg: rgba(180,83,9,0.12);
+  }
+  body.theme-pastel {
+    --paper: #FDF6F9; --card: #FFFFFF; --field-bg: #F8EDF3;
+    --ink: #3D3A50; --ink-soft: #6E6A85; --ink-faint: #9B96B0;
+    --line: #EBD9E4;
+    --sage: #2E7D5B; --sage-bg: rgba(46,125,91,0.12);
+    --brick: #C24A6B; --brick-bg: rgba(194,74,107,0.12);
+    --gold: #8E5BA6; --gold-bg: rgba(142,91,166,0.12);
+    --font-display: 'Quicksand', -apple-system, sans-serif;
+    --font-body: 'Quicksand', -apple-system, sans-serif;
+    --font-mono: 'Quicksand', -apple-system, sans-serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -412,6 +467,15 @@
   <div class="modal-sheet">
     <h3>Settings</h3>
     <div class="field">
+      <label>Theme</label>
+      <select id="settings-theme">
+        <option value="auto">Auto (follow device)</option>
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="pastel">Pastel</option>
+      </select>
+    </div>
+    <div class="field">
       <label>Currency</label>
       <select id="settings-currency">
         <option value="SGD">SGD — Singapore dollar</option>
@@ -499,7 +563,29 @@
     return moved;
   }
 
-  var PALETTE = ['#34D399', '#F87171', '#FBBF24', '#60A5FA', '#A78BFA', '#F472B6', '#2DD4BF', '#FB923C', '#A3E635', '#818CF8'];
+  var PALETTES = {
+    dark: ['#34D399', '#F87171', '#FBBF24', '#60A5FA', '#A78BFA', '#F472B6', '#2DD4BF', '#FB923C', '#A3E635', '#818CF8'],
+    light: ['#059669', '#DC2626', '#D97706', '#2563EB', '#7C3AED', '#DB2777', '#0D9488', '#EA580C', '#65A30D', '#4F46E5'],
+    pastel: ['#5FBF9F', '#E88BA6', '#E3B23C', '#7FA8E0', '#A98BD6', '#E8A0C8', '#5CC0B5', '#E0A070', '#9BC46A', '#8E9BE0']
+  };
+  var PALETTE = PALETTES.dark;
+
+  function applyTheme() {
+    var t = (state.settings && state.settings.theme) || 'auto';
+    var eff = t === 'auto' ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
+    document.body.classList.remove('theme-light', 'theme-pastel');
+    if (eff === 'light') document.body.classList.add('theme-light');
+    if (eff === 'pastel') document.body.classList.add('theme-pastel');
+    PALETTE = PALETTES[eff === 'pastel' ? 'pastel' : (eff === 'light' ? 'light' : 'dark')];
+    colorRegistry = {}; nextColorIndex = 0;
+  }
+  if (window.matchMedia) {
+    try {
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function() {
+        if (((state.settings && state.settings.theme) || 'auto') === 'auto') { applyTheme(); if (currentUid) renderAll(); }
+      });
+    } catch (e) {}
+  }
   var EXPENSE_CATS = ['Food', 'Groceries', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Health', 'Savings', 'Other'];
   var INCOME_CATS = ['Salary', 'Gift', 'Other income'];
 
@@ -700,6 +786,7 @@
     });
     if (!state.settings.currency || state.settings.currency.length !== 3) state.settings.currency = 'SGD';
     if (!state.settings.cycleStartDay) state.settings.cycleStartDay = 1;
+    if (!state.settings.theme) state.settings.theme = 'auto';
     state.goals.forEach(function(g) { if (typeof g.completed === 'undefined') g.completed = false; });
   }
 
@@ -1223,6 +1310,7 @@
     document.getElementById('settings-currency').value = state.settings.currency;
     document.getElementById('settings-starting').value = state.settings.startingNetWorth;
     document.getElementById('settings-cycle-day').value = state.settings.cycleStartDay;
+    document.getElementById('settings-theme').value = state.settings.theme || 'auto';
     openModal('settings');
   }
 
@@ -1231,6 +1319,8 @@
     state.settings.startingNetWorth = parseFloat(document.getElementById('settings-starting').value) || 0;
     var cd = parseInt(document.getElementById('settings-cycle-day').value, 10);
     state.settings.cycleStartDay = (!cd || cd < 1) ? 1 : Math.min(28, cd);
+    state.settings.theme = document.getElementById('settings-theme').value;
+    applyTheme();
     await saveSettingsData();
     var snap = dateStrToDate(cycleContaining(todayStr()).start);
     budgetMonth = new Date(snap);
@@ -1263,6 +1353,7 @@
 
   async function startApp() {
     await loadData();
+    applyTheme();
     await processRecurring();
     var snap = dateStrToDate(cycleContaining(todayStr()).start);
     budgetMonth = new Date(snap);
@@ -1322,6 +1413,8 @@
   document.getElementById('login-password').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doLogin();
   });
+
+  applyTheme();
 
   auth.onAuthStateChanged(async function(user) {
     if (!user) { showLogin(''); return; }
