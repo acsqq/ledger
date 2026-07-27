@@ -100,10 +100,10 @@
     min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none;
   }
   .field input[type="date"] {
-    -webkit-appearance: none; appearance: none; display: block;
-    min-width: 0; max-width: 100%; text-align: left;
+    -webkit-appearance: none; appearance: none; display: flex; align-items: center;
+    min-width: 0; max-width: 100%; text-align: left; line-height: 44px;
   }
-  .field input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+  .field input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; line-height: normal; }
   .field input:focus, .field select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
   .type-toggle { display: flex; border: 1px solid var(--line); border-radius: 0; overflow: hidden; }
   .type-toggle button {
