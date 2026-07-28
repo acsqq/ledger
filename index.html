@@ -207,6 +207,7 @@
   .goal-card.completed .name { text-decoration: line-through; }
   .goal-card .pct { font-size: 12px; color: var(--gold); font-weight: 600; }
   .goal-card .figures { font-family: var(--font-mono); font-size: 13px; color: var(--ink-soft); margin: 8px 0 10px; white-space: nowrap; overflow: hidden; }
+  .goal-card .goal-projection { font-size: 12px; color: var(--gold); margin: 0 0 10px; }
   .goal-card .badge-reached { display: inline-block; background: var(--gold-bg); color: var(--gold); font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 0; margin-bottom: 8px; }
   .goal-card .actions { display: flex; gap: 8px; }
   .goal-card .goal-custom { display: flex; gap: 8px; margin-top: 8px; }
@@ -232,6 +233,12 @@
   nav.tabs button { flex: 1; background: none; border: none; padding: 8px 0; font-size: 10.5px; color: var(--ink-faint); cursor: pointer; font-family: var(--font-body); font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 4px; }
   nav.tabs button.active { color: var(--ink); }
   nav.tabs button svg { width: 22px; height: 22px; display: block; }
+  .nav-icon-wrap { position: relative; display: inline-block; }
+  .nav-badge {
+    position: absolute; top: -4px; right: -8px; background: var(--brick); color: #fff;
+    font-size: 9px; font-weight: 700; line-height: 1; min-width: 14px; height: 14px;
+    border-radius: 0; display: flex; align-items: center; justify-content: center; padding: 0 3px;
+  }
 
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 50;
@@ -261,6 +268,9 @@
   .legend-row .pct { color: var(--ink-soft); font-family: var(--font-mono); }
   .legend-row .val { font-family: var(--font-mono); font-weight: 600; min-width: 70px; text-align: right; white-space: nowrap; overflow: hidden; }
   .chart-empty { text-align: center; padding: 24px 10px; color: var(--ink-soft); font-size: 13px; }
+  .networth-chart-wrap { margin-bottom: 4px; }
+  .networth-chart-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+  .networth-chart-labels .networth-latest { color: var(--ink-soft); font-weight: 600; }
 
   .total-value-card { background: var(--card); border: 1px solid var(--line); border-radius: 0; padding: 20px; margin-bottom: 16px; }
   .total-value-card .label { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 6px; }
@@ -292,11 +302,20 @@
   .recur-row:last-child { border-bottom: none; }
   .recur-row .rname { font-size: 13px; font-weight: 600; }
   .recur-row .rmeta { font-size: 11px; color: var(--ink-soft); }
+  .recur-row .due-soon { color: var(--gold); font-weight: 700; }
   .recur-row .ramt { font-family: var(--font-mono); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; max-width: 30%; }
   .recur-row .ramt.in { color: var(--sage); }
   .recur-row .ramt.out { color: var(--brick); }
   .recur-row .r-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .recur-row .r-actions button { background: none; border: 1px solid var(--line); border-radius: 0; padding: 4px 8px; font-size: 11px; cursor: pointer; color: var(--ink-soft); font-family: var(--font-body); }
+  .undo-toast {
+    position: fixed; left: 50%; transform: translateX(-50%) translateY(120%); bottom: calc(76px + env(safe-area-inset-bottom));
+    width: calc(100% - 40px); max-width: 440px; background: var(--ink); color: var(--paper);
+    display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+    transition: transform 0.25s ease; z-index: 40; font-size: 13px;
+  }
+  .undo-toast.open { transform: translateX(-50%) translateY(0); }
+  .undo-toast button { background: none; border: none; color: var(--gold); font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--font-body); }
   .key-metrics { display: flex; gap: 10px; margin-bottom: 18px; }
   .metric-card { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 0; padding: 16px; }
   .metric-card .label { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 6px; }
@@ -335,6 +354,8 @@
         <div class="metric-card cash"><p class="label">Cash balance <button class="icon-btn eye-inline" id="eye-cash-btn" onclick="toggleCashVisibility()" aria-label="Show or hide cash balance"></button></p><p class="value" id="metric-cash">—</p></div>
         <div class="metric-card invest"><p class="label">Investments <button class="icon-btn eye-inline eye-invest-btn" onclick="toggleInvestVisibility()" aria-label="Show or hide investments"></button></p><p class="value" id="metric-invest">—</p></div>
       </div>
+      <h2 class="section-title">Net worth over time</h2>
+      <div id="networth-chart"></div>
       <div class="month-nav">
         <button onclick="shiftOverviewMonth(-1)" aria-label="Previous month">‹</button>
         <span class="m-label" id="overview-month-label">—</span>
@@ -393,6 +414,8 @@
       </details>
 
       <h2 class="section-title">All transactions<button class="link-btn" onclick="exportCSV()">Export CSV</button></h2>
+      <div class="field"><input type="text" id="txn-search" placeholder="Search notes or category…" oninput="renderTransactions()"></div>
+      <div class="field"><select id="txn-filter-cat" onchange="renderTransactions()"><option value="">All categories</option></select></div>
       <div id="txn-list"></div>
     </section>
 
@@ -402,6 +425,7 @@
         <div class="field"><label>Monthly limit</label><input type="number" inputmode="decimal" id="budget-limit" placeholder="0.00" step="0.01" min="0"></div>
         <button class="btn btn-primary" onclick="addBudget()">Set budget</button>
       </div>
+      <button class="btn btn-ghost" style="margin-bottom:18px;" onclick="openManageCategories()">Manage categories</button>
       <div class="month-nav">
         <button onclick="shiftBudgetMonth(-1)" aria-label="Previous month">‹</button>
         <span class="m-label" id="budget-month-label">—</span>
@@ -440,13 +464,21 @@
     </section>
   </main>
 
+  <div class="undo-toast" id="undo-toast">
+    <span id="undo-toast-msg">Transaction deleted</span>
+    <button onclick="undoDelete()">Undo</button>
+  </div>
+
   <nav class="tabs">
     <button class="active" data-tab="overview" onclick="switchTab('overview')">
       <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></svg>
       Overview
     </button>
     <button data-tab="transactions" onclick="switchTab('transactions')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg>
+      <span class="nav-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg>
+        <span class="nav-badge" id="bills-due-badge" style="display:none;"></span>
+      </span>
       Transactions
     </button>
     <button data-tab="budget" onclick="switchTab('budget')">
@@ -462,6 +494,15 @@
       Invest
     </button>
   </nav>
+</div>
+
+<div class="modal-overlay" id="modal-categories">
+  <div class="modal-sheet">
+    <h3>Manage categories</h3>
+    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;">Rename a category to fix a typo, or rename it to an existing category name to merge them.</p>
+    <div id="category-list"></div>
+    <div class="modal-close"><button onclick="closeModal('categories')">Close</button></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal-daily">
@@ -514,6 +555,7 @@
       <p style="font-size:11px; color:var(--ink-soft); margin: 6px 2px 0;">Use this if your budgeting month doesn't start on the 1st — e.g. set it to the day you get paid. Capped at 28 so it works the same every month.</p>
     </div>
     <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+    <button class="btn btn-ghost" style="margin-top:10px;" onclick="exportBackup()">Backup all data (JSON)</button>
     <button class="btn btn-ghost" style="margin-top:10px;" onclick="doLogout()">Sign out</button>
     <button class="btn btn-ghost" style="margin-top:10px;" onclick="resetAllData()">Reset all data</button>
     <div class="modal-close"><button onclick="closeModal('settings')">Close</button></div>
@@ -610,6 +652,7 @@
     goals: [],
     portfolios: [],
     recurring: [],
+    netWorthHistory: [],
     settings: { currency: 'SGD', startingNetWorth: 0 }
   };
   var currentTxnType = 'out';
@@ -798,15 +841,17 @@
       window.storage.get('goals').catch(function() { return null; }),
       window.storage.get('settings').catch(function() { return null; }),
       window.storage.get('portfolios').catch(function() { return null; }),
-      window.storage.get('recurring').catch(function() { return null; })
+      window.storage.get('recurring').catch(function() { return null; }),
+      window.storage.get('networth').catch(function() { return null; })
     ]);
-    var t = results[0], b = results[1], g = results[2], s = results[3], p = results[4], r = results[5];
+    var t = results[0], b = results[1], g = results[2], s = results[3], p = results[4], r = results[5], nw = results[6];
     try { state.txns = t ? JSON.parse(t.value) : []; } catch (e) { state.txns = []; }
     try { state.budgets = b ? JSON.parse(b.value) : {}; } catch (e) { state.budgets = {}; }
     try { state.goals = g ? JSON.parse(g.value) : []; } catch (e) { state.goals = []; }
     try { state.settings = s ? JSON.parse(s.value) : { currency: 'SGD', startingNetWorth: 0 }; } catch (e) { state.settings = { currency: 'SGD', startingNetWorth: 0 }; }
     try { state.portfolios = p ? JSON.parse(p.value) : []; } catch (e) { state.portfolios = []; }
     try { state.recurring = r ? JSON.parse(r.value) : []; } catch (e) { state.recurring = []; }
+    try { state.netWorthHistory = nw ? JSON.parse(nw.value) : []; } catch (e) { state.netWorthHistory = []; }
     state.recurring.forEach(function(rec) {
       if (!rec.anchorDay && rec.nextDate) rec.anchorDay = dateStrToDate(rec.nextDate).getDate();
     });
@@ -822,6 +867,7 @@
   async function saveSettingsData() { try { await window.storage.set('settings', JSON.stringify(state.settings)); } catch (e) {} }
   async function savePortfolios() { try { await window.storage.set('portfolios', JSON.stringify(state.portfolios)); } catch (e) {} }
   async function saveRecurring() { try { await window.storage.set('recurring', JSON.stringify(state.recurring)); } catch (e) {} }
+  async function saveNetWorthHistory() { try { await window.storage.set('networth', JSON.stringify(state.netWorthHistory)); } catch (e) {} }
 
   function switchTab(name) {
     document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
@@ -927,12 +973,43 @@
       '</div><span class="amt" style="color:var(--gold);">' + (diff >= 0 ? '▲ ' : '▼ ') + fmt(Math.abs(diff)) + '</span></div>';
   }
 
+  function renderNetWorthChart() {
+    var container = document.getElementById('networth-chart');
+    var hist = (state.netWorthHistory || []).slice();
+    var hideVals = cashHidden || investHidden;
+    if (hist.length === 0) { container.innerHTML = '<div class="chart-empty">No history yet — check back tomorrow.</div>'; return; }
+    if (hist.length === 1) {
+      container.innerHTML = '<div class="chart-empty">' + (hideVals ? MASK : fmt(hist[0].value)) + ' today. History builds as you use Ledger daily.</div>';
+      return;
+    }
+    var values = hist.map(function(pt) { return pt.value; });
+    var minV = Math.min.apply(null, values), maxV = Math.max.apply(null, values);
+    var range = maxV - minV || 1;
+    var w = 320, hgt = 90, padX = 6, padY = 12;
+    var n = hist.length;
+    var pts = hist.map(function(pt, i) {
+      var x = padX + (i / (n - 1)) * (w - padX * 2);
+      var y = padY + (1 - (pt.value - minV) / range) * (hgt - padY * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    var poly = '<polyline points="' + pts.join(' ') + '" fill="none" style="stroke:var(--sage);" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    var dots = pts.map(function(p) {
+      var c = p.split(',');
+      return '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="2.2" style="fill:var(--sage);"/>';
+    }).join('');
+    var svg = '<svg viewBox="0 0 ' + w + ' ' + hgt + '" width="100%" height="' + hgt + '" preserveAspectRatio="none">' + poly + dots + '</svg>';
+    var lastVal = hideVals ? MASK : fmt(hist[n - 1].value);
+    container.innerHTML = '<div class="networth-chart-wrap">' + svg +
+      '<div class="networth-chart-labels"><span>' + hist[0].date + '</span><span class="networth-latest">' + hist[n - 1].date + ' · ' + lastVal + '</span></div></div>';
+  }
+
   function renderOverview() {
     var totals = computeTotals();
     var cash = (Number(state.settings.startingNetWorth) || 0) + totals.totalIn - totals.totalOut;
     var invest = investmentsTotal();
     animateValue('metric-cash', cash, cashHidden);
     animateValue('metric-invest', Math.max(0, invest), investHidden);
+    renderNetWorthChart();
 
     var cyc = cycleContaining(dateObjToStr(overviewMonth));
     var isCurrent = isInCycle(todayStr(), cyc);
@@ -965,10 +1042,25 @@
       '<button class="del" aria-label="Delete transaction" onclick="deleteTransaction(' + t.id + ')">×</button></div>';
   }
 
+  function populateTxnFilterCategories() {
+    var sel = document.getElementById('txn-filter-cat');
+    var current = sel.value;
+    var cats = Array.from(new Set(state.txns.map(function(t) { return t.category; }))).sort();
+    sel.innerHTML = '<option value="">All categories</option>' + cats.map(function(c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join('');
+    if (cats.indexOf(current) !== -1) sel.value = current;
+  }
+
   function renderTransactions() {
+    populateTxnFilterCategories();
     var list = document.getElementById('txn-list');
+    var q = (document.getElementById('txn-search').value || '').trim().toLowerCase();
+    var catFilter = document.getElementById('txn-filter-cat').value;
     var sorted = state.txns.slice().sort(function(a, b) { return b.date.localeCompare(a.date) || b.id - a.id; });
-    list.innerHTML = sorted.length === 0 ? '<div class="empty">Nothing logged yet.</div>' : sorted.map(rowHtml).join('');
+    if (catFilter) sorted = sorted.filter(function(t) { return t.category === catFilter; });
+    if (q) sorted = sorted.filter(function(t) {
+      return (t.note || '').toLowerCase().indexOf(q) !== -1 || (t.category || '').toLowerCase().indexOf(q) !== -1;
+    });
+    list.innerHTML = sorted.length === 0 ? '<div class="empty">No matching transactions.</div>' : sorted.map(rowHtml).join('');
   }
 
   async function addTransaction() {
@@ -990,15 +1082,48 @@
     renderAll();
   }
 
+  var lastDeleted = null;
+  var undoTimer = null;
+
   async function deleteTransaction(id) {
     var t = state.txns.find(function(t) { return t.id === id; });
-    if (t && t.goalId) {
+    if (!t) return;
+    if (t.goalId) {
       var g = state.goals.find(function(g) { return g.id === t.goalId; });
       if (g) { g.saved = Math.max(0, g.saved - (t.type === 'out' ? t.amount : -t.amount)); await saveGoals(); }
     }
-    state.txns = state.txns.filter(function(t) { return t.id !== id; });
+    state.txns = state.txns.filter(function(x) { return x.id !== id; });
+    await saveTxns();
+    lastDeleted = t;
+    showUndoToast('Transaction deleted');
+    renderAll();
+  }
+
+  async function undoDelete() {
+    if (!lastDeleted) return;
+    var t = lastDeleted;
+    lastDeleted = null;
+    hideUndoToast();
+    state.txns.push(t);
+    if (t.goalId) {
+      var g = state.goals.find(function(g) { return g.id === t.goalId; });
+      if (g) { g.saved = Math.max(0, g.saved + (t.type === 'out' ? t.amount : -t.amount)); await saveGoals(); }
+    }
     await saveTxns();
     renderAll();
+  }
+
+  function showUndoToast(msg) {
+    if (undoTimer) clearTimeout(undoTimer);
+    var el = document.getElementById('undo-toast');
+    document.getElementById('undo-toast-msg').textContent = msg;
+    el.classList.add('open');
+    undoTimer = setTimeout(function() { lastDeleted = null; hideUndoToast(); }, 5000);
+  }
+
+  function hideUndoToast() {
+    document.getElementById('undo-toast').classList.remove('open');
+    if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
   }
 
   function exportCSV() {
@@ -1018,6 +1143,25 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = 'transactions.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportBackup() {
+    var backup = {
+      exportedAt: new Date().toISOString(),
+      txns: state.txns,
+      budgets: state.budgets,
+      goals: state.goals,
+      portfolios: state.portfolios,
+      recurring: state.recurring,
+      settings: state.settings,
+      netWorthHistory: state.netWorthHistory || []
+    };
+    var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'ledger-backup-' + todayStr() + '.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
@@ -1137,14 +1281,35 @@
     compWrap.innerHTML = completed.length === 0 ? '' : '<h2 class="section-title">Completed</h2>' + completed.map(goalCardHtml).join('');
   }
 
+  function goalProjectionText(g) {
+    if (g.completed) return '';
+    var remaining = g.target - g.saved;
+    if (remaining <= 0) return '';
+    var linked = state.txns.filter(function(t) { return t.goalId === g.id; });
+    if (linked.length === 0) return 'Add contributions to see a projection.';
+    var dates = linked.map(function(t) { return t.date; }).sort();
+    var firstDate = dates[0];
+    var net = 0;
+    linked.forEach(function(t) { net += (t.type === 'out' ? t.amount : -t.amount); });
+    var daysElapsed = Math.max(1, Math.round((dateStrToDate(todayStr()) - dateStrToDate(firstDate)) / 86400000));
+    var dailyRate = net / daysElapsed;
+    if (dailyRate <= 0) return 'Add contributions to see a projection.';
+    var daysToGo = Math.ceil(remaining / dailyRate);
+    var target = new Date(dateStrToDate(todayStr()));
+    target.setDate(target.getDate() + daysToGo);
+    return 'At this rate, reach goal by ' + target.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + '.';
+  }
+
   function goalCardHtml(g) {
     var pct = g.target > 0 ? Math.min(100, Math.round((g.saved / g.target) * 100)) : 0;
     var reached = g.saved >= g.target && g.target > 0;
+    var projection = goalProjectionText(g);
     return '<div class="goal-card' + (g.completed ? ' completed' : '') + '">' +
       (reached && !g.completed ? '<span class="badge-reached">Goal reached</span>' : '') +
       '<div class="top"><span class="name">' + escapeHtml(g.name) + '</span><span class="pct">' + pct + '%</span></div>' +
       '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;"></div></div>' +
       '<div class="figures">' + fmt(g.saved) + ' of ' + fmt(g.target) + '</div>' +
+      (projection ? '<p class="goal-projection">' + projection + '</p>' : '') +
       (g.completed ? '' : '<div class="actions"><button onclick="contributeToGoal(' + g.id + ', 10)">+10</button><button onclick="contributeToGoal(' + g.id + ', 50)">+50</button><button onclick="contributeToGoal(' + g.id + ', 100)">+100</button></div>') +
       (g.completed ? '' : '<div class="goal-custom"><input type="number" inputmode="decimal" step="0.01" min="0" placeholder="Custom amount" id="custom-amt-' + g.id + '"><button onclick="contributeCustomGoal(' + g.id + ')">Add</button></div>') +
       '<div class="rm-row"><button class="rm" onclick="toggleGoalComplete(' + g.id + ')">' + (g.completed ? 'Reopen goal' : 'Mark complete') + '</button>' +
@@ -1254,13 +1419,29 @@
     renderInvestments(); renderOverview();
   }
 
+  function billsDueSoon() {
+    var today = todayStr();
+    var soon = addDaysToDateStr(today, 7);
+    return state.recurring.filter(function(r) { return r.active && r.nextDate >= today && r.nextDate <= soon; });
+  }
+
+  function updateBillsBadge() {
+    var badge = document.getElementById('bills-due-badge');
+    var due = billsDueSoon();
+    if (due.length > 0) { badge.textContent = due.length; badge.style.display = 'flex'; }
+    else { badge.style.display = 'none'; }
+  }
+
   function renderRecurring() {
+    updateBillsBadge();
+    var dueIds = billsDueSoon().map(function(r) { return r.id; });
     var list = document.getElementById('recurring-list');
     if (state.recurring.length === 0) { list.innerHTML = '<div class="empty">No recurring transactions yet.</div>'; return; }
     list.innerHTML = state.recurring.map(function(r) {
       var sign = r.type === 'in' ? '+' : '−';
+      var dueSoon = dueIds.indexOf(r.id) !== -1;
       return '<div class="recur-row' + (r.active ? '' : ' paused') + '">' +
-        '<div><span class="rname">' + escapeHtml(r.name) + '</span><br><span class="rmeta">' + (r.frequency === 'monthly' ? 'Monthly' : 'Weekly') + ' · next ' + r.nextDate + '</span></div>' +
+        '<div><span class="rname">' + escapeHtml(r.name) + '</span><br><span class="rmeta">' + (r.frequency === 'monthly' ? 'Monthly' : 'Weekly') + ' · next ' + r.nextDate + (dueSoon ? ' · <span class="due-soon">due soon</span>' : '') + '</span></div>' +
         '<span class="ramt ' + r.type + '">' + sign + fmt(r.amount) + '</span>' +
         '<div class="r-actions"><button onclick="toggleRecurring(' + r.id + ')">' + (r.active ? 'Pause' : 'Resume') + '</button><button onclick="removeRecurring(' + r.id + ')">Delete</button></div></div>';
     }).join('');
@@ -1344,6 +1525,51 @@
     autoShrinkAll();
   }
 
+  function allKnownCategories() {
+    var set = {};
+    EXPENSE_CATS.forEach(function(c) { set[c] = true; });
+    INCOME_CATS.forEach(function(c) { set[c] = true; });
+    Object.keys(state.budgets).forEach(function(c) { set[c] = true; });
+    state.txns.forEach(function(t) { set[t.category] = true; });
+    state.recurring.forEach(function(r) { set[r.category] = true; });
+    return Object.keys(set).sort();
+  }
+
+  function renderCategoryList() {
+    var cats = allKnownCategories();
+    var countByCat = {};
+    state.txns.forEach(function(t) { countByCat[t.category] = (countByCat[t.category] || 0) + 1; });
+    var list = document.getElementById('category-list');
+    list.innerHTML = cats.map(function(c) {
+      var n = countByCat[c] || 0;
+      return '<div class="ledger-row"><div class="row-main">' +
+        '<span class="cat-dot" style="background:' + colorForLabel(c) + ';"></span>' +
+        '<div class="meta"><p class="cat">' + escapeHtml(c) + '</p><p class="note-date">' + n + ' transaction' + (n === 1 ? '' : 's') + '</p></div>' +
+        '</div><button class="rm" onclick="renameCategoryPrompt(\'' + c.replace(/'/g, "\\'") + '\')">Rename</button></div>';
+    }).join('');
+  }
+
+  function openManageCategories() {
+    renderCategoryList();
+    openModal('categories');
+  }
+
+  async function renameCategoryPrompt(oldName) {
+    var newName = prompt('Rename "' + oldName + '" to:', oldName);
+    if (!newName) return;
+    newName = newName.trim();
+    if (!newName || newName === oldName) return;
+    state.txns.forEach(function(t) { if (t.category === oldName) t.category = newName; });
+    state.recurring.forEach(function(r) { if (r.category === oldName) r.category = newName; });
+    if (state.budgets.hasOwnProperty(oldName)) {
+      if (!state.budgets.hasOwnProperty(newName)) state.budgets[newName] = state.budgets[oldName];
+      delete state.budgets[oldName];
+    }
+    await Promise.all([saveTxns(), saveRecurring(), saveBudgets()]);
+    renderCategoryList();
+    renderAll();
+  }
+
   function openDailySummary() {
     var dateEl = document.getElementById('daily-date');
     dateEl.value = todayStr();
@@ -1376,9 +1602,9 @@
 
   async function resetAllData() {
     if (!confirm('This clears all transactions, budgets, goals, portfolios, and recurring items. This cannot be undone. Continue?')) return;
-    state.txns = []; state.budgets = {}; state.goals = []; state.portfolios = []; state.recurring = [];
+    state.txns = []; state.budgets = {}; state.goals = []; state.portfolios = []; state.recurring = []; state.netWorthHistory = [];
     state.settings = { currency: 'SGD', startingNetWorth: 0, cycleStartDay: 1 };
-    await Promise.all([saveTxns(), saveBudgets(), saveGoals(), savePortfolios(), saveRecurring(), saveSettingsData()]);
+    await Promise.all([saveTxns(), saveBudgets(), saveGoals(), savePortfolios(), saveRecurring(), saveNetWorthHistory(), saveSettingsData()]);
     var snap = dateStrToDate(cycleContaining(todayStr()).start);
     budgetMonth = new Date(snap);
     overviewMonth = new Date(snap);
@@ -1400,6 +1626,7 @@
     await loadData();
     applyTheme();
     await processRecurring();
+    await snapshotNetWorth();
     var snap = dateStrToDate(cycleContaining(todayStr()).start);
     budgetMonth = new Date(snap);
     overviewMonth = new Date(snap);
@@ -1411,6 +1638,20 @@
     renderAll();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+  }
+
+  async function snapshotNetWorth() {
+    var totals = computeTotals();
+    var cash = (Number(state.settings.startingNetWorth) || 0) + totals.totalIn - totals.totalOut;
+    var invest = investmentsTotal();
+    var value = cash + invest;
+    var today = todayStr();
+    var idx = state.netWorthHistory.findIndex(function(h) { return h.date === today; });
+    if (idx === -1) state.netWorthHistory.push({ date: today, value: value });
+    else state.netWorthHistory[idx].value = value;
+    state.netWorthHistory.sort(function(a, b) { return a.date.localeCompare(b.date); });
+    if (state.netWorthHistory.length > 365) state.netWorthHistory = state.netWorthHistory.slice(-365);
+    await saveNetWorthHistory();
   }
 
   function showLogin(msg) {
