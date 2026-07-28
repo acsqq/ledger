@@ -404,7 +404,8 @@
         </div>
         <div class="field"><label>Amount</label><input type="number" inputmode="decimal" id="txn-amount" placeholder="0.00" step="0.01" min="0"></div>
         <div class="field"><label>Category</label><select id="txn-category"></select></div>
-        <div class="field"><label>Note (optional)</label><input type="text" id="txn-note" placeholder="What was this for?"></div>
+        <div class="field"><label>Note (optional)</label><input type="text" id="txn-note" list="note-suggestions" placeholder="What was this for?"></div>
+      <datalist id="note-suggestions"></datalist>
         <div class="field"><label>Date</label><input type="date" id="txn-date"></div>
         <div class="field"><label>Link to goal (optional)</label><select id="txn-goal"><option value="">No goal</option></select></div>
         <button class="btn btn-primary" id="add-txn-btn" onclick="addTransaction()">Add transaction</button>
@@ -530,7 +531,7 @@
     </div>
     <div class="field"><label>Amount</label><input type="number" inputmode="decimal" id="edit-txn-amount" step="0.01" min="0"></div>
     <div class="field"><label>Category</label><select id="edit-txn-category"></select></div>
-    <div class="field"><label>Note (optional)</label><input type="text" id="edit-txn-note" placeholder="What was this for?"></div>
+    <div class="field"><label>Note (optional)</label><input type="text" id="edit-txn-note" list="note-suggestions" placeholder="What was this for?"></div>
     <div class="field"><label>Date</label><input type="date" id="edit-txn-date"></div>
     <div class="field"><label>Link to goal (optional)</label><select id="edit-txn-goal"><option value="">No goal</option></select></div>
     <button class="btn btn-primary" id="save-edit-txn-btn" onclick="saveEditTransaction()">Save changes</button>
@@ -1741,6 +1742,19 @@
     renderAll();
   }
 
+  function populateNoteSuggestions() {
+    var seen = {};
+    var notes = [];
+    state.txns.forEach(function(t) {
+      var n = (t.note || '').trim();
+      if (!n) return;
+      var key = n.toLowerCase();
+      if (!seen[key]) { seen[key] = true; notes.push(n); }
+    });
+    var datalist = document.getElementById('note-suggestions');
+    datalist.innerHTML = notes.map(function(n) { return '<option value="' + escapeHtml(n) + '">'; }).join('');
+  }
+
   function renderAll() {
     renderGoals();
     renderOverview();
@@ -1748,6 +1762,7 @@
     renderBudget();
     renderInvestments();
     renderRecurring();
+    populateNoteSuggestions();
     autoShrinkAll();
   }
 
