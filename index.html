@@ -1550,8 +1550,12 @@
 
   function billsDueSoon() {
     var today = todayStr();
-    var soon = addDaysToDateStr(today, 7);
-    return state.recurring.filter(function(r) { return r.active && r.nextDate >= today && r.nextDate <= soon; });
+    return state.recurring.filter(function(r) {
+      if (!r.active) return false;
+      var windowDays = r.frequency === 'weekly' ? 2 : 7;
+      var soon = addDaysToDateStr(today, windowDays);
+      return r.nextDate >= today && r.nextDate <= soon;
+    });
   }
 
   function updateBillsBadge() {
