@@ -101,13 +101,15 @@
     border-bottom: 1px solid var(--line); padding-bottom: 1px; cursor: pointer; font-family: var(--font-body);
   }
   header .header-actions { display: flex; align-items: center; gap: 14px; }
-  header .icon-btn {
-    background: none; border: none; padding: 0; cursor: pointer; color: var(--ink-soft);
-    display: flex; align-items: center; justify-content: center;
+  .icon-btn {
+    background: none; border: none; padding: 0; margin: 0; cursor: pointer; color: var(--ink-soft);
+    display: flex; align-items: center; justify-content: center; -webkit-appearance: none; appearance: none;
   }
-  header .icon-btn svg { width: 20px; height: 20px; display: block; }
-  .icon-btn.eye-inline { display: inline-flex; vertical-align: middle; margin-left: 4px; color: var(--ink-faint); }
-  .icon-btn.eye-inline svg { width: 14px; height: 14px; }
+  .icon-btn svg { width: 20px; height: 20px; display: block; }
+  .icon-btn.eye-inline { display: inline-flex; vertical-align: middle; margin-left: 3px; color: var(--ink-faint); flex-shrink: 0; }
+  .icon-btn.eye-inline svg { width: 12px; height: 12px; }
+  .metric-card .label, .total-value-card .label { display: flex; align-items: center; flex-wrap: nowrap; gap: 2px; }
+  .metric-card .label .label-text, .total-value-card .label .label-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   main { padding: 0 20px; }
   .panel { display: none; }
   .panel.active { display: block; animation: fade 0.2s ease; }
@@ -144,7 +146,8 @@
 
   .cat-dot { display: inline-block; width: 8px; height: 8px; border-radius: 0; margin-right: 8px; flex-shrink: 0; }
 
-  .ledger-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .ledger-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .ledger-row:active { background: var(--field-bg); }
   .ledger-row:last-child { border-bottom: none; }
   .ledger-row .row-main { display: flex; align-items: center; gap: 0; flex: 1; min-width: 0; }
   .ledger-row .meta { min-width: 0; }
@@ -362,6 +365,7 @@
   <header>
     <h1>Ledger</h1>
     <div class="header-actions">
+      <button class="icon-btn" id="eye-master-btn" onclick="toggleAllVisibility()" aria-label="Show or hide all amounts"></button>
       <button class="settings-link" onclick="openSettingsModal()">Settings</button>
     </div>
   </header>
@@ -369,8 +373,8 @@
   <main>
     <section id="panel-overview" class="panel active">
       <div class="key-metrics">
-        <div class="metric-card cash"><p class="label">Cash balance <button class="icon-btn eye-inline" id="eye-cash-btn" onclick="toggleCashVisibility()" aria-label="Show or hide cash balance"></button></p><p class="value" id="metric-cash">—</p></div>
-        <div class="metric-card invest"><p class="label">Investments <button class="icon-btn eye-inline eye-invest-btn" onclick="toggleInvestVisibility()" aria-label="Show or hide investments"></button></p><p class="value" id="metric-invest">—</p></div>
+        <div class="metric-card cash"><p class="label"><span class="label-text">Cash balance</span><button class="icon-btn eye-inline" id="eye-cash-btn" onclick="toggleCashVisibility()" aria-label="Show or hide cash balance"></button></p><p class="value" id="metric-cash">—</p></div>
+        <div class="metric-card invest"><p class="label"><span class="label-text">Investments</span><button class="icon-btn eye-inline eye-invest-btn" onclick="toggleInvestVisibility()" aria-label="Show or hide investments"></button></p><p class="value" id="metric-invest">—</p></div>
       </div>
       <h2 class="section-title">Net worth over time</h2>
       <div id="networth-chart"></div>
@@ -468,7 +472,7 @@
 
     <section id="panel-investments" class="panel">
       <div class="total-value-card">
-        <p class="label">Total portfolio value <button class="icon-btn eye-inline eye-invest-btn" onclick="toggleInvestVisibility()" aria-label="Show or hide investments"></button></p>
+        <p class="label"><span class="label-text">Total portfolio value</span><button class="icon-btn eye-inline eye-invest-btn" onclick="toggleInvestVisibility()" aria-label="Show or hide investments"></button></p>
         <p class="value" id="invest-total-val">—</p>
       </div>
       <div id="invest-donut"></div>
@@ -512,6 +516,27 @@
       Invest
     </button>
   </nav>
+</div>
+
+<div class="modal-overlay" id="modal-edit-txn">
+  <div class="modal-sheet">
+    <h3>Edit transaction</h3>
+    <div class="field">
+      <label>Type</label>
+      <div class="type-toggle">
+        <button type="button" id="edit-type-out-btn" class="active out" onclick="setEditTxnType('out')">Money out</button>
+        <button type="button" id="edit-type-in-btn" class="in" onclick="setEditTxnType('in')">Money in</button>
+      </div>
+    </div>
+    <div class="field"><label>Amount</label><input type="number" inputmode="decimal" id="edit-txn-amount" step="0.01" min="0"></div>
+    <div class="field"><label>Category</label><select id="edit-txn-category"></select></div>
+    <div class="field"><label>Note (optional)</label><input type="text" id="edit-txn-note" placeholder="What was this for?"></div>
+    <div class="field"><label>Date</label><input type="date" id="edit-txn-date"></div>
+    <div class="field"><label>Link to goal (optional)</label><select id="edit-txn-goal"><option value="">No goal</option></select></div>
+    <button class="btn btn-primary" id="save-edit-txn-btn" onclick="saveEditTransaction()">Save changes</button>
+    <button class="btn btn-ghost" style="margin-top:10px;" onclick="deleteFromEditModal()">Delete transaction</button>
+    <div class="modal-close"><button onclick="closeModal('edit-txn')">Cancel</button></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal-categories">
@@ -674,6 +699,8 @@
     settings: { currency: 'SGD', startingNetWorth: 0 }
   };
   var currentTxnType = 'out';
+  var editingTxnType = 'out';
+  var editingTxnId = null;
   var currentRecurType = 'out';
   var budgetMonth = new Date();
   var overviewMonth = new Date();
@@ -741,6 +768,8 @@
     document.querySelectorAll('.eye-invest-btn').forEach(function(b) {
       b.innerHTML = investHidden ? EYE_OFF_SVG : EYE_OPEN_SVG;
     });
+    var masterBtn = document.getElementById('eye-master-btn');
+    if (masterBtn) masterBtn.innerHTML = (cashHidden && investHidden) ? EYE_OFF_SVG : EYE_OPEN_SVG;
   }
 
   function toggleCashVisibility() {
@@ -751,6 +780,14 @@
 
   function toggleInvestVisibility() {
     investHidden = !investHidden;
+    updateEyeIcons();
+    renderOverview();
+    renderInvestments();
+  }
+  function toggleAllVisibility() {
+    var reveal = cashHidden && investHidden;
+    cashHidden = !reveal;
+    investHidden = !reveal;
     updateEyeIcons();
     renderOverview();
     renderInvestments();
@@ -925,8 +962,9 @@
     sel.innerHTML = cats.map(function(c) { return '<option value="' + c + '">' + escapeHtml(c) + '</option>'; }).join('');
   }
 
-  function populateGoalSelect() {
-    var sel = document.getElementById('txn-goal');
+  function populateGoalSelect(selectId) {
+    selectId = selectId || 'txn-goal';
+    var sel = document.getElementById(selectId);
     var current = sel.value;
     sel.innerHTML = '<option value="">No goal</option>' + state.goals.filter(function(g) { return !g.completed; }).map(function(g) { return '<option value="' + g.id + '">' + escapeHtml(g.name) + '</option>'; }).join('');
     if (state.goals.some(function(g) { return String(g.id) === current; })) sel.value = current;
@@ -1061,11 +1099,11 @@
     if (t.goalId) { var g = state.goals.find(function(g) { return g.id === t.goalId; }); if (g) goalName = ' · → ' + escapeHtml(g.name); }
     var title = t.note ? escapeHtml(t.note) : escapeHtml(t.category);
     var subline = t.date + ' · ' + escapeHtml(t.category) + goalName;
-    return '<div class="ledger-row"><div class="row-main">' +
+    return '<div class="ledger-row" onclick="openEditTransaction(' + t.id + ')"><div class="row-main">' +
       '<span class="cat-dot" style="background:' + colorForLabel(t.category) + ';"></span>' +
       '<div class="meta"><p class="cat">' + title + '</p><p class="note-date">' + subline + '</p></div>' +
       '</div><span class="amt ' + t.type + '">' + sign + fmt(t.amount) + '</span>' +
-      '<button class="del" aria-label="Delete transaction" onclick="deleteTransaction(' + t.id + ')">×</button></div>';
+      '<button class="del" aria-label="Delete transaction" onclick="event.stopPropagation(); deleteTransaction(' + t.id + ')">×</button></div>';
   }
 
   function populateTxnFilterCategories() {
@@ -1124,6 +1162,66 @@
     lastDeleted = t;
     showUndoToast('Transaction deleted');
     renderAll();
+  }
+
+  function setEditTxnType(type) {
+    editingTxnType = type;
+    document.getElementById('edit-type-out-btn').classList.toggle('active', type === 'out');
+    document.getElementById('edit-type-in-btn').classList.toggle('active', type === 'in');
+    populateCategorySelect('edit-txn-category', type);
+  }
+
+  function openEditTransaction(id) {
+    var t = state.txns.find(function(t) { return t.id === id; });
+    if (!t) return;
+    editingTxnId = id;
+    editingTxnType = t.type;
+    document.getElementById('edit-type-out-btn').classList.toggle('active', t.type === 'out');
+    document.getElementById('edit-type-in-btn').classList.toggle('active', t.type === 'in');
+    populateCategorySelect('edit-txn-category', t.type);
+    document.getElementById('edit-txn-category').value = t.category;
+    document.getElementById('edit-txn-amount').value = t.amount;
+    document.getElementById('edit-txn-note').value = t.note || '';
+    document.getElementById('edit-txn-date').value = t.date;
+    populateGoalSelect('edit-txn-goal');
+    document.getElementById('edit-txn-goal').value = t.goalId ? String(t.goalId) : '';
+    openModal('edit-txn');
+  }
+
+  async function saveEditTransaction() {
+    var t = state.txns.find(function(t) { return t.id === editingTxnId; });
+    if (!t) return;
+    var amount = parseFloat(document.getElementById('edit-txn-amount').value);
+    if (!amount || amount <= 0) { document.getElementById('edit-txn-amount').focus(); return; }
+    var category = document.getElementById('edit-txn-category').value;
+    var note = document.getElementById('edit-txn-note').value.trim();
+    var date = document.getElementById('edit-txn-date').value || todayStr();
+    var goalIdRaw = document.getElementById('edit-txn-goal').value;
+    var newGoalId = goalIdRaw ? Number(goalIdRaw) : null;
+
+    if (t.goalId) {
+      var oldGoal = state.goals.find(function(g) { return g.id === t.goalId; });
+      if (oldGoal) oldGoal.saved = Math.max(0, oldGoal.saved - (t.type === 'out' ? t.amount : -t.amount));
+    }
+    t.type = editingTxnType;
+    t.amount = amount;
+    t.category = category;
+    t.note = note;
+    t.date = date;
+    t.goalId = newGoalId;
+    if (newGoalId) {
+      var newGoal = state.goals.find(function(g) { return g.id === newGoalId; });
+      if (newGoal) newGoal.saved = Math.max(0, newGoal.saved + (t.type === 'out' ? amount : -amount));
+    }
+    await Promise.all([saveTxns(), saveGoals()]);
+    closeModal('edit-txn');
+    renderAll();
+  }
+
+  function deleteFromEditModal() {
+    var id = editingTxnId;
+    closeModal('edit-txn');
+    deleteTransaction(id);
   }
 
   async function undoDelete() {
