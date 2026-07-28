@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ledger">
@@ -112,6 +112,20 @@
   .panel { display: none; }
   .panel.active { display: block; animation: fade 0.2s ease; }
   @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+  .ledger-row, .goal-card, .portfolio-row, .budget-item, .recur-row {
+    animation: rowIn 0.25s ease backwards;
+  }
+  .ledger-row:nth-of-type(1), .goal-card:nth-of-type(1), .portfolio-row:nth-of-type(1), .budget-item:nth-of-type(1), .recur-row:nth-of-type(1) { animation-delay: 0.02s; }
+  .ledger-row:nth-of-type(2), .goal-card:nth-of-type(2), .portfolio-row:nth-of-type(2), .budget-item:nth-of-type(2), .recur-row:nth-of-type(2) { animation-delay: 0.05s; }
+  .ledger-row:nth-of-type(3), .goal-card:nth-of-type(3), .portfolio-row:nth-of-type(3), .budget-item:nth-of-type(3), .recur-row:nth-of-type(3) { animation-delay: 0.08s; }
+  .ledger-row:nth-of-type(4), .goal-card:nth-of-type(4), .portfolio-row:nth-of-type(4), .budget-item:nth-of-type(4), .recur-row:nth-of-type(4) { animation-delay: 0.11s; }
+  .ledger-row:nth-of-type(n+5), .goal-card:nth-of-type(n+5), .portfolio-row:nth-of-type(n+5), .budget-item:nth-of-type(n+5), .recur-row:nth-of-type(n+5) { animation-delay: 0.13s; }
+  .nav-badge, .badge-reached { animation: popIn 0.2s ease; }
+  nav.tabs button { transition: color 0.15s ease; }
+  nav.tabs button svg { transition: transform 0.15s ease; }
+  nav.tabs button.active svg { transform: scale(1.08); }
 
   .hero { background: var(--card); border: 1px solid var(--line); border-radius: 0; padding: 22px 20px; margin-bottom: 16px; }
   .hero .label { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 6px; }
@@ -153,7 +167,7 @@
   }
   .field input, .field select {
     width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 0;
-    font-size: 15px; background: var(--field-bg); color: var(--ink); font-family: var(--font-body);
+    font-size: 16px; background: var(--field-bg); color: var(--ink); font-family: var(--font-body);
     min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none;
   }
   .field input[type="date"] {
@@ -175,6 +189,8 @@
   button:active { transform: scale(0.96); }
   .btn-primary { background: var(--ink); color: var(--paper); }
   .btn-primary:active { opacity: 0.85; }
+  @keyframes flashSuccess { 0% { background: var(--sage); } 100% { background: var(--ink); } }
+  .flash-success { animation: flashSuccess 0.6s ease; }
   .btn-ghost { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
   .btn-sm { width: auto; padding: 8px 14px; font-size: 13px; border-radius: 0; }
 
@@ -197,7 +213,7 @@
   .budget-item .edit-row label { font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
   .budget-item .edit-row input {
     flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 0;
-    font-family: var(--font-mono); font-size: 14px; background: var(--paper); color: var(--ink);
+    font-family: var(--font-mono); font-size: 16px; background: var(--paper); color: var(--ink);
   }
 
   .goal-card { background: var(--card); border: 1px solid var(--line); border-radius: 0; padding: 16px; margin-bottom: 14px; }
@@ -212,7 +228,7 @@
   .goal-card .actions { display: flex; gap: 8px; }
   .goal-card .goal-custom { display: flex; gap: 8px; margin-top: 8px; }
   .goal-card .goal-custom input {
-    flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 0; font-size: 13px;
+    flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 0; font-size: 16px;
     background: var(--paper); color: var(--ink); font-family: var(--font-body);
   }
   .goal-card .goal-custom button {
@@ -251,7 +267,8 @@
   .modal-close { text-align: center; margin-top: 6px; }
   .modal-close button { background: none; border: none; color: var(--ink-soft); font-size: 14px; padding: 10px; cursor: pointer; font-family: var(--font-body); }
 
-  .loading { text-align: center; padding: 60px 20px; color: var(--ink-soft); font-size: 14px; }
+  .loading { text-align: center; padding: 60px 20px; color: var(--ink-soft); font-size: 14px; animation: loadPulse 1.4s ease-in-out infinite; }
+  @keyframes loadPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
   #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 20px; }
   .login-box { width: 100%; max-width: 340px; }
   .login-title { font-family: var(--font-display); font-size: 30px; font-weight: 700; margin: 0 0 4px; }
@@ -290,7 +307,7 @@
   .alloc-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 0; margin-bottom: 10px; }
   .portfolio-row .edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .portfolio-row .edit-row label { font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
-  .portfolio-row .edit-row input { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 0; font-family: var(--font-mono); font-size: 14px; background: var(--paper); color: var(--ink); }
+  .portfolio-row .edit-row input { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 0; font-family: var(--font-mono); font-size: 16px; background: var(--paper); color: var(--ink); }
   .portfolio-row .rm { background: none; border: none; color: var(--ink-faint); font-size: 12px; cursor: pointer; padding: 0; }
 
   details.recurring-details { background: var(--card); border: 1px solid var(--line); border-radius: 0; padding: 4px 16px 16px; margin-bottom: 18px; }
@@ -309,12 +326,13 @@
   .recur-row .r-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .recur-row .r-actions button { background: none; border: 1px solid var(--line); border-radius: 0; padding: 4px 8px; font-size: 11px; cursor: pointer; color: var(--ink-soft); font-family: var(--font-body); }
   .undo-toast {
-    position: fixed; left: 50%; transform: translateX(-50%) translateY(120%); bottom: calc(76px + env(safe-area-inset-bottom));
+    position: fixed; left: 50%; transform: translateX(-50%) translateY(160px); bottom: calc(76px + env(safe-area-inset-bottom));
     width: calc(100% - 40px); max-width: 440px; background: var(--ink); color: var(--paper);
     display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
-    transition: transform 0.25s ease; z-index: 40; font-size: 13px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease; z-index: 40; font-size: 13px;
+    opacity: 0; pointer-events: none;
   }
-  .undo-toast.open { transform: translateX(-50%) translateY(0); }
+  .undo-toast.open { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
   .undo-toast button { background: none; border: none; color: var(--gold); font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--font-body); }
   .key-metrics { display: flex; gap: 10px; margin-bottom: 18px; }
   .metric-card { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 0; padding: 16px; }
@@ -385,7 +403,7 @@
         <div class="field"><label>Note (optional)</label><input type="text" id="txn-note" placeholder="What was this for?"></div>
         <div class="field"><label>Date</label><input type="date" id="txn-date"></div>
         <div class="field"><label>Link to goal (optional)</label><select id="txn-goal"><option value="">No goal</option></select></div>
-        <button class="btn btn-primary" onclick="addTransaction()">Add transaction</button>
+        <button class="btn btn-primary" id="add-txn-btn" onclick="addTransaction()">Add transaction</button>
       </div>
 
       <details class="recurring-details" id="recurring-details">
@@ -407,7 +425,7 @@
           <select id="recur-frequency"><option value="monthly">Monthly</option><option value="weekly">Weekly</option></select>
         </div>
         <div class="field"><label>Starts on</label><input type="date" id="recur-start"></div>
-        <button class="btn btn-primary" onclick="addRecurring()">Add recurring</button>
+        <button class="btn btn-primary" id="add-recur-btn" onclick="addRecurring()">Add recurring</button>
         <p style="font-size:11px; color:var(--ink-soft); margin: 10px 2px 0;">Runs whenever you open the app — it catches up any charges you missed since your last visit.</p>
         <h2 class="section-title" style="margin-top:18px;">Active</h2>
         <div id="recurring-list"></div>
@@ -423,7 +441,7 @@
       <div class="card-form">
         <div class="field"><label>Category</label><input type="text" id="budget-cat" placeholder="e.g. Food"></div>
         <div class="field"><label>Monthly limit</label><input type="number" inputmode="decimal" id="budget-limit" placeholder="0.00" step="0.01" min="0"></div>
-        <button class="btn btn-primary" onclick="addBudget()">Set budget</button>
+        <button class="btn btn-primary" id="add-budget-btn" onclick="addBudget()">Set budget</button>
       </div>
       <button class="btn btn-ghost" style="margin-bottom:18px;" onclick="openManageCategories()">Manage categories</button>
       <div class="month-nav">
@@ -442,7 +460,7 @@
         <div class="field"><label>Goal name</label><input type="text" id="goal-name" placeholder="e.g. Emergency fund"></div>
         <div class="field"><label>Target amount</label><input type="number" inputmode="decimal" id="goal-target" placeholder="0.00" step="0.01" min="0"></div>
         <div class="field"><label>Already saved (optional)</label><input type="number" inputmode="decimal" id="goal-saved" placeholder="0.00" step="0.01" min="0"></div>
-        <button class="btn btn-primary" onclick="addGoal()">Add goal</button>
+        <button class="btn btn-primary" id="add-goal-btn" onclick="addGoal()">Add goal</button>
       </div>
       <div id="goal-list"></div>
       <div id="goal-completed-wrap"></div>
@@ -457,7 +475,7 @@
       <div class="card-form">
         <div class="field"><label>Portfolio name</label><input type="text" id="portfolio-name" placeholder="e.g. Brokerage, CPF, Crypto"></div>
         <div class="field"><label>Current value</label><input type="number" inputmode="decimal" id="portfolio-value" placeholder="0.00" step="0.01" min="0"></div>
-        <button class="btn btn-primary" onclick="addPortfolio()">Add portfolio</button>
+        <button class="btn btn-primary" id="add-portfolio-btn" onclick="addPortfolio()">Add portfolio</button>
       </div>
       <h2 class="section-title">Your portfolios</h2>
       <div id="portfolio-list"></div>
@@ -785,6 +803,14 @@
     requestAnimationFrame(step);
   }
 
+  function flashSuccess(elId) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.classList.remove('flash-success');
+    void el.offsetWidth;
+    el.classList.add('flash-success');
+  }
+
   function fmt(n) {
     n = Math.round((Number(n) || 0) * 100) / 100;
     try {
@@ -1079,6 +1105,7 @@
     }
     await saveTxns();
     amountEl.value = ''; document.getElementById('txn-note').value = ''; document.getElementById('txn-goal').value = '';
+    flashSuccess('add-txn-btn');
     renderAll();
   }
 
@@ -1248,6 +1275,7 @@
     state.budgets[cat] = limit;
     await saveBudgets();
     catEl.value = ''; document.getElementById('budget-limit').value = '';
+    flashSuccess('add-budget-btn');
     renderBudget();
     populateCategorySelect('txn-category', currentTxnType);
     populateCategorySelect('recur-category', currentRecurType);
@@ -1325,6 +1353,7 @@
     state.goals.push({ id: Date.now(), name: name, target: target, saved: saved, completed: false });
     await saveGoals();
     nameEl.value = ''; document.getElementById('goal-target').value = ''; document.getElementById('goal-saved').value = '';
+    flashSuccess('add-goal-btn');
     renderGoals();
   }
 
@@ -1398,6 +1427,7 @@
     state.portfolios.push({ id: Date.now(), name: name, value: value, previousValue: value, updated: todayStr() });
     await savePortfolios();
     nameEl.value = ''; document.getElementById('portfolio-value').value = '';
+    flashSuccess('add-portfolio-btn');
     renderInvestments(); renderOverview();
   }
 
@@ -1459,6 +1489,7 @@
     await saveRecurring();
     nameEl.value = ''; document.getElementById('recur-amount').value = '';
     await processRecurring();
+    flashSuccess('add-recur-btn');
     renderAll();
   }
 
