@@ -454,6 +454,11 @@
         <span class="m-label" id="budget-month-label">—</span>
         <button onclick="shiftBudgetMonth(1)" aria-label="Next month">›</button>
       </div>
+      <div class="stat-row">
+        <div class="stat-card"><p class="label">Budgeted</p><p class="amt" id="budget-total-limit">—</p></div>
+        <div class="stat-card"><p class="label">Spent</p><p class="amt" id="budget-total-spent">—</p></div>
+        <div class="stat-card"><p class="label">Remaining</p><p class="amt" id="budget-total-remaining">—</p></div>
+      </div>
       <h2 class="section-title">Spending breakdown</h2>
       <div id="budget-donut"></div>
       <h2 class="section-title">Budgets</h2>
@@ -1348,6 +1353,18 @@
     state.txns.forEach(function(t) { if (t.type === 'out' && isInCycle(t.date, cyc)) spentByCat[t.category] = (spentByCat[t.category] || 0) + t.amount; });
 
     renderDonut('budget-donut', spentByCat);
+
+    var totalLimit = 0, totalSpent = 0;
+    Object.keys(state.budgets).forEach(function(cat) {
+      totalLimit += state.budgets[cat];
+      totalSpent += spentByCat[cat] || 0;
+    });
+    var remaining = totalLimit - totalSpent;
+    document.getElementById('budget-total-limit').textContent = fmt(totalLimit);
+    document.getElementById('budget-total-spent').textContent = fmt(totalSpent);
+    var remainingEl = document.getElementById('budget-total-remaining');
+    remainingEl.textContent = (remaining < 0 ? '−' : '') + fmt(Math.abs(remaining));
+    remainingEl.parentElement.className = 'stat-card ' + (remaining < 0 ? 'out' : 'in');
 
     var list = document.getElementById('budget-list');
     var cats = Object.keys(state.budgets);
