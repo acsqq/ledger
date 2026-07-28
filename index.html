@@ -106,6 +106,8 @@
     display: flex; align-items: center; justify-content: center;
   }
   header .icon-btn svg { width: 20px; height: 20px; display: block; }
+  .icon-btn.eye-inline { display: inline-flex; vertical-align: middle; margin-left: 4px; color: var(--ink-faint); }
+  .icon-btn.eye-inline svg { width: 14px; height: 14px; }
   main { padding: 0 20px; }
   .panel { display: none; }
   .panel.active { display: block; animation: fade 0.2s ease; }
@@ -323,7 +325,6 @@
   <header>
     <h1>Ledger</h1>
     <div class="header-actions">
-      <button class="icon-btn" id="eye-btn" onclick="toggleAmountVisibility()" aria-label="Show or hide amounts"></button>
       <button class="settings-link" onclick="openSettingsModal()">Settings</button>
     </div>
   </header>
@@ -331,8 +332,8 @@
   <main>
     <section id="panel-overview" class="panel active">
       <div class="key-metrics">
-        <div class="metric-card cash"><p class="label">Cash balance</p><p class="value" id="metric-cash">—</p></div>
-        <div class="metric-card invest"><p class="label">Investments</p><p class="value" id="metric-invest">—</p></div>
+        <div class="metric-card cash"><p class="label">Cash balance <button class="icon-btn eye-inline" id="eye-cash-btn" onclick="toggleCashVisibility()" aria-label="Show or hide cash balance"></button></p><p class="value" id="metric-cash">—</p></div>
+        <div class="metric-card invest"><p class="label">Investments <button class="icon-btn eye-inline eye-invest-btn" onclick="toggleInvestVisibility()" aria-label="Show or hide investments"></button></p><p class="value" id="metric-invest">—</p></div>
       </div>
       <div class="month-nav">
         <button onclick="shiftOverviewMonth(-1)" aria-label="Previous month">‹</button>
@@ -345,7 +346,7 @@
       </div>
       <h2 class="section-title">Spending by category</h2>
       <div id="inout-donut"></div>
-      <h2 class="section-title">Activity</h2>
+      <h2 class="section-title">Activity<button class="link-btn" onclick="openDailySummary()">Daily summary</button></h2>
       <div id="recent-list"></div>
     </section>
 
@@ -425,7 +426,7 @@
 
     <section id="panel-investments" class="panel">
       <div class="total-value-card">
-        <p class="label">Total portfolio value</p>
+        <p class="label">Total portfolio value <button class="icon-btn eye-inline eye-invest-btn" onclick="toggleInvestVisibility()" aria-label="Show or hide investments"></button></p>
         <p class="value" id="invest-total-val">—</p>
       </div>
       <div id="invest-donut"></div>
@@ -461,6 +462,20 @@
       Invest
     </button>
   </nav>
+</div>
+
+<div class="modal-overlay" id="modal-daily">
+  <div class="modal-sheet">
+    <h3>Daily summary</h3>
+    <div class="field"><label>Date</label><input type="date" id="daily-date" onchange="renderDailySummary(this.value)"></div>
+    <div class="stat-row">
+      <div class="stat-card in"><p class="label">In</p><p class="amt" id="daily-in">—</p></div>
+      <div class="stat-card out"><p class="label">Out</p><p class="amt" id="daily-out">—</p></div>
+    </div>
+    <h2 class="section-title">Transactions</h2>
+    <div id="daily-list"></div>
+    <div class="modal-close"><button onclick="closeModal('daily')">Close</button></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal-settings">
@@ -648,25 +663,36 @@
     return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
   }
 
-  var amountsHidden = true;
+  var cashHidden = true;
+  var investHidden = true;
   var MASK = '••••••';
 
   var EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
   var EYE_OFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7c2 0 3.7.7 5.1 1.6"/><path d="M22 12s-3.5 7-10 7c-2 0-3.7-.7-5.1-1.6"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
 
-  function maskIfHidden(text) {
-    return amountsHidden ? MASK : text;
+  function maskIfHidden(text, hidden) {
+    return hidden ? MASK : text;
   }
 
-  function updateEyeIcon() {
-    var btn = document.getElementById('eye-btn');
-    if (btn) btn.innerHTML = amountsHidden ? EYE_OFF_SVG : EYE_OPEN_SVG;
+  function updateEyeIcons() {
+    var cashBtn = document.getElementById('eye-cash-btn');
+    if (cashBtn) cashBtn.innerHTML = cashHidden ? EYE_OFF_SVG : EYE_OPEN_SVG;
+    document.querySelectorAll('.eye-invest-btn').forEach(function(b) {
+      b.innerHTML = investHidden ? EYE_OFF_SVG : EYE_OPEN_SVG;
+    });
   }
 
-  function toggleAmountVisibility() {
-    amountsHidden = !amountsHidden;
-    updateEyeIcon();
-    renderAll();
+  function toggleCashVisibility() {
+    cashHidden = !cashHidden;
+    updateEyeIcons();
+    renderOverview();
+  }
+
+  function toggleInvestVisibility() {
+    investHidden = !investHidden;
+    updateEyeIcons();
+    renderOverview();
+    renderInvestments();
   }
 
   var SHRINK_SELECTORS = ['.metric-card .value', '.total-value-card .value', '.stat-card .amt', '.ledger-row .amt', '.budget-item .figures', '.goal-card .figures', '.p-value .amt', '.recur-row .ramt', '.legend-row .val'];
@@ -691,10 +717,10 @@
     });
   }
 
-  function animateValue(elId, newValue) {
+  function animateValue(elId, newValue, hidden) {
     var el = document.getElementById(elId);
     if (!el) return;
-    if (amountsHidden) {
+    if (hidden) {
       el.style.fontSize = '';
       el.textContent = MASK;
       el.dataset.rawValue = String(newValue);
@@ -905,8 +931,8 @@
     var totals = computeTotals();
     var cash = (Number(state.settings.startingNetWorth) || 0) + totals.totalIn - totals.totalOut;
     var invest = investmentsTotal();
-    animateValue('metric-cash', cash);
-    animateValue('metric-invest', Math.max(0, invest));
+    animateValue('metric-cash', cash, cashHidden);
+    animateValue('metric-invest', Math.max(0, invest), investHidden);
 
     var cyc = cycleContaining(dateObjToStr(overviewMonth));
     var isCurrent = isInCycle(todayStr(), cyc);
@@ -1170,7 +1196,7 @@
 
   function renderInvestments() {
     var total = investmentsTotal();
-    animateValue('invest-total-val', total);
+    animateValue('invest-total-val', total, investHidden);
     var allocData = {};
     state.portfolios.forEach(function(p) { allocData[p.name] = Number(p.value) || 0; });
     renderDonut('invest-donut', allocData);
@@ -1191,10 +1217,10 @@
         '<div class="p-top">' +
           '<div class="p-avatar" style="background:' + color + '; color:#0A1830;">' + initials + '</div>' +
           '<div class="p-info"><span class="name">' + escapeHtml(p.name) + '</span><span class="updated">Updated ' + p.updated + '</span></div>' +
-          '<div class="p-value"><span class="amt">' + maskIfHidden(fmt(p.value)) + '</span>' + deltaHtml + '</div>' +
+          '<div class="p-value"><span class="amt">' + maskIfHidden(fmt(p.value), investHidden) + '</span>' + deltaHtml + '</div>' +
         '</div>' +
         '<span class="alloc-pill" style="background:' + color + '; color:#0A1830;">' + pct + '% of portfolio</span>' +
-        (amountsHidden ? '' : '<div class="edit-row"><label>Update value</label><input type="number" inputmode="decimal" step="0.01" value="' + p.value + '" onchange="updatePortfolioValue(' + p.id + ', this.value)"></div>') +
+        (investHidden ? '' : '<div class="edit-row"><label>Update value</label><input type="number" inputmode="decimal" step="0.01" value="' + p.value + '" onchange="updatePortfolioValue(' + p.id + ', this.value)"></div>') +
         '<button class="rm" onclick="removePortfolio(' + p.id + ')">Remove</button></div>';
     }).join('');
   }
@@ -1306,6 +1332,25 @@
     await saveRecurring();
   }
 
+  function renderDailySummary(dateStr) {
+    var dayTxns = state.txns.filter(function(t) { return t.date === dateStr; });
+    var totalIn = 0, totalOut = 0;
+    dayTxns.forEach(function(t) { if (t.type === 'in') totalIn += t.amount; else totalOut += t.amount; });
+    document.getElementById('daily-in').textContent = fmt(totalIn);
+    document.getElementById('daily-out').textContent = fmt(totalOut);
+    var sorted = dayTxns.slice().sort(function(a, b) { return b.id - a.id; });
+    var list = document.getElementById('daily-list');
+    list.innerHTML = sorted.length === 0 ? '<div class="empty">Nothing logged this day.</div>' : sorted.map(rowHtml).join('');
+    autoShrinkAll();
+  }
+
+  function openDailySummary() {
+    var dateEl = document.getElementById('daily-date');
+    dateEl.value = todayStr();
+    renderDailySummary(dateEl.value);
+    openModal('daily');
+  }
+
   function openSettingsModal() {
     document.getElementById('settings-currency').value = state.settings.currency;
     document.getElementById('settings-starting').value = state.settings.startingNetWorth;
@@ -1362,7 +1407,7 @@
     document.getElementById('recur-start').value = todayStr();
     populateCategorySelect('txn-category', 'out');
     populateCategorySelect('recur-category', 'out');
-    updateEyeIcon();
+    updateEyeIcons();
     renderAll();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
