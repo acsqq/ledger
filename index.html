@@ -318,6 +318,8 @@
   details.recurring-details summary::-webkit-details-marker { display: none; }
   details.recurring-details summary::after { content: '+'; font-size: 18px; color: var(--ink-soft); }
   details.recurring-details[open] summary::after { content: '−'; }
+  .transfer-swap-row { display: flex; justify-content: center; margin: -4px 0 12px; }
+  .transfer-swap-row .btn-sm { width: auto; }
   .recur-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); gap: 8px; }
   .recur-row:last-child { border-bottom: none; }
   .recur-row .rname { font-size: 13px; font-weight: 600; }
@@ -436,6 +438,26 @@
         <div id="recurring-list"></div>
       </details>
 
+      <details class="recurring-details" id="transfer-details">
+        <summary>Move between goals</summary>
+        <div class="field">
+          <label>From</label>
+          <select id="transfer-from"></select>
+        </div>
+        <div class="transfer-swap-row">
+          <button type="button" class="btn-sm btn-ghost" onclick="swapTransferGoals()">⇄ Swap</button>
+        </div>
+        <div class="field">
+          <label>To</label>
+          <select id="transfer-to"></select>
+        </div>
+        <div class="field"><label>Amount</label><input type="number" inputmode="decimal" id="transfer-amount" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="field"><label>Note (optional)</label><input type="text" id="transfer-note" placeholder="Optional note"></div>
+        <div class="field"><label>Date</label><input type="date" id="transfer-date"></div>
+        <button class="btn btn-primary" id="add-transfer-btn" onclick="addTransfer()">Move money</button>
+        <p style="font-size:11px; color:var(--ink-soft); margin: 10px 2px 0;">Moves savings between two goals. Doesn't touch your cash balance or count as spending.</p>
+      </details>
+
       <h2 class="section-title">All transactions<button class="link-btn" onclick="exportCSV()">Export CSV</button></h2>
       <div class="field"><input type="text" id="txn-search" placeholder="Search notes or category…" oninput="renderTransactions()"></div>
       <div class="field"><select id="txn-filter-cat" onchange="renderTransactions()"><option value="">All categories</option></select></div>
@@ -522,6 +544,21 @@
       Invest
     </button>
   </nav>
+</div>
+
+<div class="modal-overlay" id="modal-edit-transfer">
+  <div class="modal-sheet">
+    <h3>Edit transfer</h3>
+    <div class="field"><label>From</label><select id="edit-transfer-from"></select></div>
+    <div class="transfer-swap-row"><button type="button" class="btn-sm btn-ghost" onclick="swapEditTransferGoals()">⇄ Swap</button></div>
+    <div class="field"><label>To</label><select id="edit-transfer-to"></select></div>
+    <div class="field"><label>Amount</label><input type="number" inputmode="decimal" id="edit-transfer-amount" step="0.01" min="0"></div>
+    <div class="field"><label>Note (optional)</label><input type="text" id="edit-transfer-note" placeholder="Optional note"></div>
+    <div class="field"><label>Date</label><input type="date" id="edit-transfer-date"></div>
+    <button class="btn btn-primary" onclick="saveEditTransfer()">Save changes</button>
+    <button class="btn btn-ghost" style="margin-top:10px;" onclick="deleteFromEditTransferModal()">Delete transfer</button>
+    <div class="modal-close"><button onclick="closeModal('edit-transfer')">Cancel</button></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal-edit-txn">
@@ -978,7 +1015,7 @@
 
   function computeTotals() {
     var totalIn = 0, totalOut = 0;
-    state.txns.forEach(function(t) { if (t.type === 'in') totalIn += t.amount; else totalOut += t.amount; });
+    state.txns.forEach(function(t) { if (t.type === 'in') totalIn += t.amount; else if (t.type === 'out') totalOut += t.amount; });
     return { totalIn: totalIn, totalOut: totalOut };
   }
 
@@ -986,7 +1023,7 @@
     var monthIn = 0, monthOut = 0;
     state.txns.forEach(function(t) {
       if (!isInCycle(t.date, cyc)) return;
-      if (t.type === 'in') monthIn += t.amount; else monthOut += t.amount;
+      if (t.type === 'in') monthIn += t.amount; else if (t.type === 'out') monthOut += t.amount;
     });
     return { monthIn: monthIn, monthOut: monthOut };
   }
@@ -1099,7 +1136,24 @@
     list.innerHTML = feed.length === 0 ? '<div class="empty">Nothing this period yet.</div>' : feed.map(activityRowHtml).join('');
   }
 
+  function goalNameById(id) {
+    var g = state.goals.find(function(g) { return g.id === id; });
+    return g ? g.name : '(deleted goal)';
+  }
+
+  function transferRowHtml(t) {
+    var fromName = goalNameById(t.fromGoalId);
+    var toName = goalNameById(t.toGoalId);
+    var subline = t.date + (t.note ? ' · ' + escapeHtml(t.note) : '');
+    return '<div class="ledger-row" onclick="openEditTransfer(' + t.id + ')"><div class="row-main">' +
+      '<span class="cat-dot" style="background:var(--gold);"></span>' +
+      '<div class="meta"><p class="cat">Moved: ' + escapeHtml(fromName) + ' → ' + escapeHtml(toName) + '</p><p class="note-date">' + subline + '</p></div>' +
+      '</div><span class="amt" style="color:var(--gold);">' + fmt(t.amount) + '</span>' +
+      '<button class="del" aria-label="Delete transfer" onclick="event.stopPropagation(); deleteTransaction(' + t.id + ')">×</button></div>';
+  }
+
   function rowHtml(t) {
+    if (t.type === 'transfer') return transferRowHtml(t);
     var sign = t.type === 'in' ? '+' : '−';
     var goalName = '';
     if (t.goalId) { var g = state.goals.find(function(g) { return g.id === t.goalId; }); if (g) goalName = ' · → ' + escapeHtml(g.name); }
@@ -1159,14 +1213,20 @@
   async function deleteTransaction(id) {
     var t = state.txns.find(function(t) { return t.id === id; });
     if (!t) return;
-    if (t.goalId) {
+    if (t.type === 'transfer') {
+      var fromG = state.goals.find(function(g) { return g.id === t.fromGoalId; });
+      var toG = state.goals.find(function(g) { return g.id === t.toGoalId; });
+      if (fromG) fromG.saved = Math.max(0, fromG.saved + t.amount);
+      if (toG) toG.saved = Math.max(0, toG.saved - t.amount);
+      await saveGoals();
+    } else if (t.goalId) {
       var g = state.goals.find(function(g) { return g.id === t.goalId; });
       if (g) { g.saved = Math.max(0, g.saved - (t.type === 'out' ? t.amount : -t.amount)); await saveGoals(); }
     }
     state.txns = state.txns.filter(function(x) { return x.id !== id; });
     await saveTxns();
     lastDeleted = t;
-    showUndoToast('Transaction deleted');
+    showUndoToast(t.type === 'transfer' ? 'Transfer deleted' : 'Transaction deleted');
     renderAll();
   }
 
@@ -1230,13 +1290,88 @@
     deleteTransaction(id);
   }
 
+  var editingTransferId = null;
+
+  function openEditTransfer(id) {
+    var t = state.txns.find(function(t) { return t.id === id; });
+    if (!t || t.type !== 'transfer') return;
+    editingTransferId = id;
+    var activeGoals = state.goals.filter(function(g) { return !g.completed; });
+    var opts = activeGoals.map(function(g) { return '<option value="' + g.id + '">' + escapeHtml(g.name) + '</option>'; }).join('');
+    // Include goals used on this transfer even if since completed/deleted, so the picker isn't empty
+    [t.fromGoalId, t.toGoalId].forEach(function(gid) {
+      if (!activeGoals.some(function(g) { return g.id === gid; })) {
+        var gg = state.goals.find(function(g) { return g.id === gid; });
+        opts += '<option value="' + gid + '">' + escapeHtml(gg ? gg.name : '(deleted goal)') + '</option>';
+      }
+    });
+    document.getElementById('edit-transfer-from').innerHTML = opts;
+    document.getElementById('edit-transfer-to').innerHTML = opts;
+    document.getElementById('edit-transfer-from').value = t.fromGoalId;
+    document.getElementById('edit-transfer-to').value = t.toGoalId;
+    document.getElementById('edit-transfer-amount').value = t.amount;
+    document.getElementById('edit-transfer-note').value = t.note || '';
+    document.getElementById('edit-transfer-date').value = t.date;
+    openModal('edit-transfer');
+  }
+
+  function swapEditTransferGoals() {
+    var fromSel = document.getElementById('edit-transfer-from');
+    var toSel = document.getElementById('edit-transfer-to');
+    var tmp = fromSel.value;
+    fromSel.value = toSel.value;
+    toSel.value = tmp;
+  }
+
+  async function saveEditTransfer() {
+    var t = state.txns.find(function(t) { return t.id === editingTransferId; });
+    if (!t) return;
+    var newFromId = Number(document.getElementById('edit-transfer-from').value);
+    var newToId = Number(document.getElementById('edit-transfer-to').value);
+    var newAmount = parseFloat(document.getElementById('edit-transfer-amount').value);
+    if (!newFromId || !newToId || newFromId === newToId) { alert('Pick two different goals.'); return; }
+    if (!newAmount || newAmount <= 0) { document.getElementById('edit-transfer-amount').focus(); return; }
+
+    var oldFromG = state.goals.find(function(g) { return g.id === t.fromGoalId; });
+    var oldToG = state.goals.find(function(g) { return g.id === t.toGoalId; });
+    if (oldFromG) oldFromG.saved = Math.max(0, oldFromG.saved + t.amount);
+    if (oldToG) oldToG.saved = Math.max(0, oldToG.saved - t.amount);
+
+    var newFromG = state.goals.find(function(g) { return g.id === newFromId; });
+    var newToG = state.goals.find(function(g) { return g.id === newToId; });
+    if (newFromG) newFromG.saved = Math.max(0, newFromG.saved - newAmount);
+    if (newToG) newToG.saved = Math.max(0, newToG.saved + newAmount);
+
+    t.fromGoalId = newFromId;
+    t.toGoalId = newToId;
+    t.amount = newAmount;
+    t.note = document.getElementById('edit-transfer-note').value.trim();
+    t.date = document.getElementById('edit-transfer-date').value || todayStr();
+
+    await Promise.all([saveTxns(), saveGoals()]);
+    closeModal('edit-transfer');
+    renderAll();
+  }
+
+  function deleteFromEditTransferModal() {
+    var id = editingTransferId;
+    closeModal('edit-transfer');
+    deleteTransaction(id);
+  }
+
   async function undoDelete() {
     if (!lastDeleted) return;
     var t = lastDeleted;
     lastDeleted = null;
     hideUndoToast();
     state.txns.push(t);
-    if (t.goalId) {
+    if (t.type === 'transfer') {
+      var fromG = state.goals.find(function(g) { return g.id === t.fromGoalId; });
+      var toG = state.goals.find(function(g) { return g.id === t.toGoalId; });
+      if (fromG) fromG.saved = Math.max(0, fromG.saved - t.amount);
+      if (toG) toG.saved = Math.max(0, toG.saved + t.amount);
+      await saveGoals();
+    } else if (t.goalId) {
       var g = state.goals.find(function(g) { return g.id === t.goalId; });
       if (g) { g.saved = Math.max(0, g.saved + (t.type === 'out' ? t.amount : -t.amount)); await saveGoals(); }
     }
@@ -1260,6 +1395,11 @@
   function exportCSV() {
     var rows = [['Date', 'Type', 'Category', 'Amount', 'Note', 'Linked goal']];
     state.txns.slice().sort(function(a, b) { return a.date.localeCompare(b.date); }).forEach(function(t) {
+      if (t.type === 'transfer') {
+        var desc = goalNameById(t.fromGoalId) + ' → ' + goalNameById(t.toGoalId);
+        rows.push([t.date, 'transfer', 'Move between goals', t.amount, (t.note ? t.note + ' · ' : '') + desc, desc]);
+        return;
+      }
       var goalName = '';
       if (t.goalId) { var g = state.goals.find(function(g) { return g.id === t.goalId; }); if (g) goalName = g.name; }
       rows.push([t.date, t.type, t.category, t.amount, t.note || '', goalName]);
@@ -1417,6 +1557,7 @@
 
   function renderGoals() {
     populateGoalSelect();
+    populateTransferGoalSelects();
     var active = state.goals.filter(function(g) { return !g.completed; });
     var completed = state.goals.filter(function(g) { return g.completed; });
     var list = document.getElementById('goal-list');
@@ -1488,6 +1629,46 @@
     var amount = parseFloat(input.value);
     if (!amount || amount <= 0) { input.focus(); return; }
     contributeToGoal(id, amount);
+  }
+
+  function populateTransferGoalSelects() {
+    var active = state.goals.filter(function(g) { return !g.completed; });
+    var opts = active.map(function(g) { return '<option value="' + g.id + '">' + escapeHtml(g.name) + '</option>'; }).join('');
+    ['transfer-from', 'transfer-to'].forEach(function(id) {
+      var sel = document.getElementById(id);
+      var current = sel.value;
+      sel.innerHTML = opts;
+      if (active.some(function(g) { return String(g.id) === current; })) sel.value = current;
+    });
+  }
+
+  function swapTransferGoals() {
+    var fromSel = document.getElementById('transfer-from');
+    var toSel = document.getElementById('transfer-to');
+    var tmp = fromSel.value;
+    fromSel.value = toSel.value;
+    toSel.value = tmp;
+  }
+
+  async function addTransfer() {
+    var fromId = Number(document.getElementById('transfer-from').value);
+    var toId = Number(document.getElementById('transfer-to').value);
+    var amount = parseFloat(document.getElementById('transfer-amount').value);
+    var note = document.getElementById('transfer-note').value.trim();
+    var date = document.getElementById('transfer-date').value || todayStr();
+    if (!fromId || !toId || fromId === toId) { alert('Pick two different goals.'); return; }
+    if (!amount || amount <= 0) { document.getElementById('transfer-amount').focus(); return; }
+    var fromGoal = state.goals.find(function(g) { return g.id === fromId; });
+    var toGoal = state.goals.find(function(g) { return g.id === toId; });
+    if (!fromGoal || !toGoal) return;
+    fromGoal.saved = Math.max(0, fromGoal.saved - amount);
+    toGoal.saved = Math.max(0, toGoal.saved + amount);
+    state.txns.push({ id: newId(), type: 'transfer', amount: amount, category: 'Transfer', note: note, date: date, fromGoalId: fromId, toGoalId: toId });
+    await Promise.all([saveGoals(), saveTxns()]);
+    document.getElementById('transfer-amount').value = '';
+    document.getElementById('transfer-note').value = '';
+    flashSuccess('add-transfer-btn');
+    renderAll();
   }
 
   async function toggleGoalComplete(id) {
@@ -1667,7 +1848,7 @@
   function renderDailySummary(dateStr) {
     var dayTxns = state.txns.filter(function(t) { return t.date === dateStr; });
     var totalIn = 0, totalOut = 0;
-    dayTxns.forEach(function(t) { if (t.type === 'in') totalIn += t.amount; else totalOut += t.amount; });
+    dayTxns.forEach(function(t) { if (t.type === 'in') totalIn += t.amount; else if (t.type === 'out') totalOut += t.amount; });
     document.getElementById('daily-in').textContent = fmt(totalIn);
     document.getElementById('daily-out').textContent = fmt(totalOut);
     var sorted = dayTxns.slice().sort(function(a, b) { return b.id - a.id; });
@@ -1797,6 +1978,7 @@
     overviewMonth = new Date(snap);
     document.getElementById('txn-date').value = todayStr();
     document.getElementById('recur-start').value = todayStr();
+    document.getElementById('transfer-date').value = todayStr();
     populateCategorySelect('txn-category', 'out');
     populateCategorySelect('recur-category', 'out');
     updateEyeIcons();
